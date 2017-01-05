@@ -192,6 +192,13 @@ void setup() {
     switchAState = false;
     oldSwitchAState = false;
     }
+    if(contactSensorPresent == true){
+      chipId_stringE = "ContactSensor"+String(ESP.getChipId());
+      chipId_stringE.toCharArray(chipIdE,64);
+      #define contactPin 13
+      pinMode(contactPin, INPUT);
+      oldContactSensorState = digitalRead(contactPin);
+    }
     wifi_conn();
     ArduinoOTA.setPort(8266);
     ArduinoOTA.setHostname(chipId);
@@ -602,6 +609,15 @@ void addAccessory(){
     String addSwitchAString;
     addSwitchAJson.printTo(addSwitchAString);
     client.publish(addtopic,addSwitchAString);
+  }
+  if(contactSensorPresent == true){
+    StaticJsonBuffer<200> jsonAddContactSensorBuffer;
+    JsonObject& addContactSensorJson = jsonAddContactSensorBuffer.createObject();
+    addContactSensorJson["name"] = chipIdE;
+    addContactSensorJson["service"] = "ContactSensor";
+    String addContactSensorString;
+    addContactSensorJson.printTo(addContactSensorString);
+    client.publish(addtopic,addContactSensorString);
   }
 }
 
