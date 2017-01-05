@@ -13,7 +13,7 @@ const char* ssid = "SSID";
 const char* password = "Password";
 uint chipId_int;
 uint16_t i;
-char serviceType[64] = "SwitchA";
+char serviceType[64] = "Switch";
 char chipId[64];
 char chipIdA[64];
 char chipIdB[64];
