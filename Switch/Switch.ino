@@ -8,6 +8,9 @@
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
 #include <PubSubClient.h>
+#include <DHT.h>
+#define DHTTYPE DHT11
+#define DHTPIN  16
 
 const char* ssid = "SSID";
 const char* password = "Password";
@@ -49,13 +52,13 @@ bool oldSwitchAState;
 bool oldSwitchBState;
 bool oldSwitchCState;
 bool oldSwitchDState;
-bool oldContactSensorState;
+int oldContactSensorState;
 bool digitalSwitchAState;
 bool digitalSwitchBState;
 bool digitalSwitchCState;
 bool digitalSwitchDState;
 bool switchState;
-bool contctSensorState;
+int contactSensorState;
 bool switchAState;
 bool switchBState;
 bool switchCState;
@@ -69,6 +72,8 @@ String chipId_stringD;
 String chipId_stringE;
 String chipId_stringF;
 String chipId_stringG;
+String temp_df;
+String humi_d;
 
 unsigned long lastDebounceATime = 0;
 unsigned long lastDebounceBTime = 0;
@@ -79,6 +84,13 @@ unsigned long debounceDelay = 60;
 IPAddress server(10, 1, 1, 1);
 WiFiClient wclient;
 PubSubClient client(wclient, server);
+DHT dht(DHTPIN, DHTTYPE, 11);
+
+float humidity, temp_f;
+unsigned long previousMillis = 0;
+const long interval = 2000;
+unsigned long lasttemphumipublish = 0;
+const long temphumipublishtime = 60000;
 
 void setup() {
     Serial.begin(74880);
@@ -198,6 +210,9 @@ void setup() {
       #define contactPin 13
       pinMode(contactPin, INPUT);
       oldContactSensorState = digitalRead(contactPin);
+    }
+    if(tempHumiSensorPresent == true){
+      dht.begin();
     }
     wifi_conn();
     ArduinoOTA.setPort(8266);
@@ -519,6 +534,26 @@ void loop(){
         digitalWrite(ledAPin, LOW);
       }
     }
+    if(contactSensorPresent == true){
+      currentContactSensorState = digitalRead(contactPin);
+          if(currentContactSensorState == true){
+          contactSensorState = 1;
+          }
+          else if(currentContactSensorState == false){
+          contactSensorState = 0;
+          }
+          if(currentContactSensorState != oldContactSensorState){
+        StaticJsonBuffer<200> contactBuffer;
+        JsonObject& contactJson = contactBuffer.createObject();
+        contactJson["name"] = chipIdE;
+        contactJson["characteristic"] = "ContactSensorState";
+        contactJson["value"] = contactSensorState;
+        String contactString;
+        contactJson.printTo(contactString);
+        client.publish(outtopic,contactString);
+        oldContactSensorState = currentContactSensorState;
+    }
+    }
       client.loop();
   } else {
     wifi_conn();
@@ -670,7 +705,7 @@ void getAccessory(){
     StaticJsonBuffer<200> getSwitchBuffer;
     JsonObject& getSwitchJson = getSwitchBuffer.createObject();
     getSwitchJson["name"] = accessoryName;
-    getSwitchJson["characteristic"] = "On";
+    getSwitchJson["characteristic"] = accessoryCharacteristic;
     if(accessoryName == std::string(chipIdA)){
     getSwitchJson["value"] = digitalSwitchAState;
     }else if(accessoryName == std::string(chipIdB)){
@@ -679,10 +714,35 @@ void getAccessory(){
       getSwitchJson["value"] = digitalSwitchCState;
     }else if(accessoryName == std::string(chipIdD)){
       getSwitchJson["value"] = currentSwitchDState;
+    }else if(accessoryName == std::string(chipIdE)){
+      getSwitchJson["value"] = currentContactSensorState;
     }
     String getSwitchString;
     getSwitchJson.printTo(getSwitchString);
     client.publish(outtopic,getSwitchString);
+}
+
+void gettemperature() {
+  // Wait at least 2 seconds seconds between measurements.
+  // if the difference between the current time and last time you read
+  // the sensor is bigger than the interval you set, read the sensor
+  // Works better than delay for things happening elsewhere also
+  unsigned long currentMillis = millis();
+ 
+  if(currentMillis - previousMillis >= interval) {
+    // save the last time you read the sensor 
+    previousMillis = currentMillis;   
+ 
+    // Reading temperature for humidity takes about 250 milliseconds!
+    // Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
+    humidity = dht.readHumidity();          // Read humidity (percent)
+    temp_f = dht.readTemperature(true);     // Read temperature as Fahrenheit
+    // Check if any reads failed and exit early (to try again).
+    if (isnan(humidity) || isnan(temp_f)) {
+      humidity = 0;          // Read humidity (percent)
+      temp_f = 0;
+    }
+  }
 }
 
 void callback(const MQTT::Publish& pub){

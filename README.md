@@ -14,9 +14,8 @@ ToDo:
 X Postponed
 
 	Switch:
-	! Make the switch accessory configurable up to 4 buttons instead of hard coded.
-	! Make the contact sensor configurable to on or off.
-	- Make the Temp/Humi sensor configurable to on or off.
+	! Make the Temp/Humi sensor configurable to on or off.
+	- Add ability for door lock?
 	- Possible web page configuration or grabbing settings from a central location.
 	
 	Thermostat:
