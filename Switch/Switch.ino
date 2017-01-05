@@ -14,12 +14,17 @@ const char* password = "Password";
 uint chipId_int;
 uint16_t i;
 char serviceType[64] = "Switch";
+int numSwitches = 1; //1-4
+bool contactSensorPresent = true;
+bool tempHumiSensorPresent = true;
 char chipId[64];
 char chipIdA[64];
 char chipIdB[64];
 char chipIdC[64];
 char chipIdD[64];
 char chipIdE[64];
+char chipIdF[64];
+char chipIdG[64];
 char pubTopic[64];
 char pubMessage[256];
 
@@ -39,15 +44,18 @@ bool currentSwitchAState;
 bool currentSwitchBState;
 bool currentSwitchCState;
 bool currentSwitchDState;
+bool currentContactSensorState;
 bool oldSwitchAState;
 bool oldSwitchBState;
 bool oldSwitchCState;
 bool oldSwitchDState;
+bool oldContactSensorState;
 bool digitalSwitchAState;
 bool digitalSwitchBState;
 bool digitalSwitchCState;
 bool digitalSwitchDState;
 bool switchState;
+bool contctSensorState;
 bool switchAState;
 bool switchBState;
 bool switchCState;
@@ -75,16 +83,16 @@ PubSubClient client(wclient, server);
 void setup() {
     Serial.begin(74880);
     chipId_string = serviceType+String(ESP.getChipId());
+    chipId_string.toCharArray(chipId,64);
+    if(numSwitches == 4){
     chipId_stringA = "SwitchA"+String(ESP.getChipId());
     chipId_stringB = "SwitchB"+String(ESP.getChipId());
     chipId_stringC = "SwitchC"+String(ESP.getChipId());
-    chipId_stringC = "SwitchD"+String(ESP.getChipId());
-    chipId_string.toCharArray(chipId,64);
+    chipId_stringD = "SwitchD"+String(ESP.getChipId());
     chipId_stringA.toCharArray(chipIdA,64);
     chipId_stringB.toCharArray(chipIdB,64);
     chipId_stringC.toCharArray(chipIdC,64);
     chipId_stringD.toCharArray(chipIdD,64);
-    chipId_stringE.toCharArray(chipIdE,64);
     #define ledAPin 0
     #define ledBPin 2
     #define ledCPin 15
@@ -117,6 +125,73 @@ void setup() {
     oldSwitchBState = false;
     oldSwitchCState = false;
     oldSwitchDState = false;
+    }
+    else if(numSwitches == 3){
+    chipId_stringA = "SwitchA"+String(ESP.getChipId());
+    chipId_stringB = "SwitchB"+String(ESP.getChipId());
+    chipId_stringC = "SwitchC"+String(ESP.getChipId());
+    chipId_stringA.toCharArray(chipIdA,64);
+    chipId_stringB.toCharArray(chipIdB,64);
+    chipId_stringC.toCharArray(chipIdC,64);
+    #define ledAPin 0
+    #define ledBPin 2
+    #define ledCPin 15
+    #define switchAPin 12
+    #define switchBPin 13
+    #define switchCPin 14
+    pinMode(ledAPin, OUTPUT);
+    pinMode(ledBPin, OUTPUT);
+    pinMode(ledCPin, OUTPUT);
+    pinMode(switchAPin, INPUT);
+    pinMode(switchBPin, INPUT);
+    pinMode(switchCPin, INPUT);
+    digitalWrite(ledAPin, LOW);
+    digitalWrite(ledBPin, LOW);
+    digitalWrite(ledCPin, LOW);
+    digitalSwitchAState = false;
+    digitalSwitchBState = false;
+    digitalSwitchCState = false;
+    switchAState = false;
+    switchBState = false;
+    switchCState = false;
+    oldSwitchAState = false;
+    oldSwitchBState = false;
+    oldSwitchCState = false;
+    }
+    else if(numSwitches == 2){
+    chipId_stringA = "SwitchA"+String(ESP.getChipId());
+    chipId_stringB = "SwitchB"+String(ESP.getChipId());
+    chipId_stringA.toCharArray(chipIdA,64);
+    chipId_stringB.toCharArray(chipIdB,64);
+    #define ledAPin 0
+    #define ledBPin 2
+    #define switchAPin 12
+    #define switchBPin 13
+    pinMode(ledAPin, OUTPUT);
+    pinMode(ledBPin, OUTPUT);
+    pinMode(switchAPin, INPUT);
+    pinMode(switchBPin, INPUT);
+    digitalWrite(ledAPin, LOW);
+    digitalWrite(ledBPin, LOW);
+    digitalSwitchAState = false;
+    digitalSwitchBState = false;
+    switchAState = false;
+    switchBState = false;
+    oldSwitchAState = false;
+    oldSwitchBState = false;
+    }
+    else if(numSwitches == 1){
+    chipId_stringA = "SwitchA"+String(ESP.getChipId());
+    chipId_stringA.toCharArray(chipIdA,64);
+    #define ledAPin 0
+    #define switchAPin 12
+    pinMode(ledAPin, OUTPUT);
+    pinMode(switchAPin, INPUT);
+    digitalWrite(ledAPin, LOW);
+    digitalSwitchAState = false;
+    switchAState = false;
+    oldSwitchAState = false;
+    }
     wifi_conn();
     ArduinoOTA.setPort(8266);
     ArduinoOTA.setHostname(chipId);
@@ -170,16 +245,16 @@ void loop(){
   client.subscribe(mainttopic);
   addAccessory();
       } else {
-        Serial.println("Could not connect to MQTT server");
         delay(5000);
       }
     }
 
     if (client.connected())
+    if(numSwitches == 4){
     currentSwitchAState = digitalRead(switchAPin);
     currentSwitchBState = digitalRead(switchBPin);
     currentSwitchCState = digitalRead(switchCPin);
-    currentSwitchDState = digitalRead(switchCPin);
+    currentSwitchDState = digitalRead(switchDPin);
       if(currentSwitchAState != oldSwitchAState){
         lastDebounceATime = millis();
       }else if(currentSwitchBState != oldSwitchBState){
@@ -277,6 +352,166 @@ void loop(){
       }else{
         digitalWrite(ledDPin, LOW);
       }
+    }
+    else if(numSwitches == 3){
+    currentSwitchAState = digitalRead(switchAPin);
+    currentSwitchBState = digitalRead(switchBPin);
+    currentSwitchCState = digitalRead(switchCPin);
+      if(currentSwitchAState != oldSwitchAState){
+        lastDebounceATime = millis();
+      }else if(currentSwitchBState != oldSwitchBState){
+        lastDebounceBTime = millis();
+      }else if(currentSwitchCState != oldSwitchCState){
+        lastDebounceCTime = millis();
+      }
+      if ((millis() - lastDebounceATime) > debounceDelay) {
+        if (currentSwitchAState != switchAState) {
+          switchAState = currentSwitchAState;
+          if (switchAState == true) {
+          digitalSwitchAState = !digitalSwitchAState;
+          StaticJsonBuffer<200> switchABuffer;
+          JsonObject& switchAJson = switchABuffer.createObject();
+          switchAJson["name"] = chipIdA;
+          switchAJson["characteristic"] = "On";
+          switchAJson["value"] = digitalSwitchAState;
+          String switchAString;
+          switchAJson.printTo(switchAString);
+          client.publish(outtopic,switchAString);
+          }
+        }
+      }
+      if ((millis() - lastDebounceBTime) > debounceDelay) {
+        if (currentSwitchBState != switchBState) {
+          switchBState = currentSwitchBState;
+          if (switchBState == true) {
+          digitalSwitchBState = !digitalSwitchBState;
+          StaticJsonBuffer<200> switchBBuffer;
+          JsonObject& switchBJson = switchBBuffer.createObject();
+          switchBJson["name"] = chipIdB;
+          switchBJson["characteristic"] = "On";
+          switchBJson["value"] = digitalSwitchBState;
+          String switchBString;
+          switchBJson.printTo(switchBString);
+          client.publish(outtopic,switchBString);
+          }
+        }
+      }
+      if ((millis() - lastDebounceCTime) > debounceDelay) {
+        if (currentSwitchCState != switchCState) {
+          switchCState = currentSwitchCState;
+          if (switchCState == true) {
+          digitalSwitchCState = !digitalSwitchCState;
+          StaticJsonBuffer<200> switchCBuffer;
+          JsonObject& switchCJson = switchCBuffer.createObject();
+          switchCJson["name"] = chipIdC;
+          switchCJson["characteristic"] = "On";
+          switchCJson["value"] = digitalSwitchCState;
+          String switchCString;
+          switchCJson.printTo(switchCString);
+          client.publish(outtopic,switchCString);
+          }
+        }
+      }
+      oldSwitchAState = currentSwitchAState;
+      oldSwitchBState = currentSwitchBState;
+      oldSwitchCState = currentSwitchCState;
+      if(digitalSwitchAState == true){
+        digitalWrite(ledAPin, HIGH);
+      }else{
+        digitalWrite(ledAPin, LOW);
+      }
+      if(digitalSwitchBState == true){
+        digitalWrite(ledBPin, HIGH);
+      }else{
+        digitalWrite(ledBPin, LOW);
+      }
+      if(digitalSwitchCState == true){
+        digitalWrite(ledCPin, HIGH);
+      }else{
+        digitalWrite(ledCPin, LOW);
+      }
+    }
+    else if(numSwitches == 2){
+    currentSwitchAState = digitalRead(switchAPin);
+    currentSwitchBState = digitalRead(switchBPin);
+      if(currentSwitchAState != oldSwitchAState){
+        lastDebounceATime = millis();
+      }else if(currentSwitchBState != oldSwitchBState){
+        lastDebounceBTime = millis();
+      }
+      if ((millis() - lastDebounceATime) > debounceDelay) {
+        if (currentSwitchAState != switchAState) {
+          switchAState = currentSwitchAState;
+          if (switchAState == true) {
+          digitalSwitchAState = !digitalSwitchAState;
+          StaticJsonBuffer<200> switchABuffer;
+          JsonObject& switchAJson = switchABuffer.createObject();
+          switchAJson["name"] = chipIdA;
+          switchAJson["characteristic"] = "On";
+          switchAJson["value"] = digitalSwitchAState;
+          String switchAString;
+          switchAJson.printTo(switchAString);
+          client.publish(outtopic,switchAString);
+          }
+        }
+      }
+      if ((millis() - lastDebounceBTime) > debounceDelay) {
+        if (currentSwitchBState != switchBState) {
+          switchBState = currentSwitchBState;
+          if (switchBState == true) {
+          digitalSwitchBState = !digitalSwitchBState;
+          StaticJsonBuffer<200> switchBBuffer;
+          JsonObject& switchBJson = switchBBuffer.createObject();
+          switchBJson["name"] = chipIdB;
+          switchBJson["characteristic"] = "On";
+          switchBJson["value"] = digitalSwitchBState;
+          String switchBString;
+          switchBJson.printTo(switchBString);
+          client.publish(outtopic,switchBString);
+          }
+        }
+      }
+      oldSwitchAState = currentSwitchAState;
+      oldSwitchBState = currentSwitchBState;
+      if(digitalSwitchAState == true){
+        digitalWrite(ledAPin, HIGH);
+      }else{
+        digitalWrite(ledAPin, LOW);
+      }
+      if(digitalSwitchBState == true){
+        digitalWrite(ledBPin, HIGH);
+      }else{
+        digitalWrite(ledBPin, LOW);
+      }
+    }
+    else if(numSwitches == 1){
+    currentSwitchAState = digitalRead(switchAPin);
+      if(currentSwitchAState != oldSwitchAState){
+        lastDebounceATime = millis();
+      }
+      if ((millis() - lastDebounceATime) > debounceDelay) {
+        if (currentSwitchAState != switchAState) {
+          switchAState = currentSwitchAState;
+          if (switchAState == true) {
+          digitalSwitchAState = !digitalSwitchAState;
+          StaticJsonBuffer<200> switchABuffer;
+          JsonObject& switchAJson = switchABuffer.createObject();
+          switchAJson["name"] = chipIdA;
+          switchAJson["characteristic"] = "On";
+          switchAJson["value"] = digitalSwitchAState;
+          String switchAString;
+          switchAJson.printTo(switchAString);
+          client.publish(outtopic,switchAString);
+          }
+        }
+      }
+      oldSwitchAState = currentSwitchAState;
+      if(digitalSwitchAState == true){
+        digitalWrite(ledAPin, HIGH);
+      }else{
+        digitalWrite(ledAPin, LOW);
+      }
+    }
       client.loop();
   } else {
     wifi_conn();
@@ -284,6 +519,7 @@ void loop(){
 }
 
 void addAccessory(){
+  if(numSwitches == 4){
     StaticJsonBuffer<200> jsonAddSwitchABuffer;
     JsonObject& addSwitchAJson = jsonAddSwitchABuffer.createObject();
     addSwitchAJson["name"] = chipIdA;
@@ -315,6 +551,58 @@ void addAccessory(){
     String addSwitchDString;
     addSwitchDJson.printTo(addSwitchDString);
     client.publish(addtopic,addSwitchDString);
+  }
+  else if(numSwitches == 3){
+    StaticJsonBuffer<200> jsonAddSwitchABuffer;
+    JsonObject& addSwitchAJson = jsonAddSwitchABuffer.createObject();
+    addSwitchAJson["name"] = chipIdA;
+    addSwitchAJson["service"] = "Switch";
+    String addSwitchAString;
+    addSwitchAJson.printTo(addSwitchAString);
+    client.publish(addtopic,addSwitchAString);
+    
+    StaticJsonBuffer<200> jsonAddSwitchBBuffer;
+    JsonObject& addSwitchBJson = jsonAddSwitchBBuffer.createObject();
+    addSwitchBJson["name"] = chipIdB;
+    addSwitchBJson["service"] = "Switch";
+    String addSwitchBString;
+    addSwitchBJson.printTo(addSwitchBString);
+    client.publish(addtopic,addSwitchBString);
+
+    StaticJsonBuffer<200> jsonAddSwitchCBuffer;
+    JsonObject& addSwitchCJson = jsonAddSwitchCBuffer.createObject();
+    addSwitchCJson["name"] = chipIdC;
+    addSwitchCJson["service"] = "Switch";
+    String addSwitchCString;
+    addSwitchCJson.printTo(addSwitchCString);
+    client.publish(addtopic,addSwitchCString);
+  }
+  else if(numSwitches == 2){
+    StaticJsonBuffer<200> jsonAddSwitchABuffer;
+    JsonObject& addSwitchAJson = jsonAddSwitchABuffer.createObject();
+    addSwitchAJson["name"] = chipIdA;
+    addSwitchAJson["service"] = "Switch";
+    String addSwitchAString;
+    addSwitchAJson.printTo(addSwitchAString);
+    client.publish(addtopic,addSwitchAString);
+    
+    StaticJsonBuffer<200> jsonAddSwitchBBuffer;
+    JsonObject& addSwitchBJson = jsonAddSwitchBBuffer.createObject();
+    addSwitchBJson["name"] = chipIdB;
+    addSwitchBJson["service"] = "Switch";
+    String addSwitchBString;
+    addSwitchBJson.printTo(addSwitchBString);
+    client.publish(addtopic,addSwitchBString);
+  }
+  else if(numSwitches == 1){
+    StaticJsonBuffer<200> jsonAddSwitchABuffer;
+    JsonObject& addSwitchAJson = jsonAddSwitchABuffer.createObject();
+    addSwitchAJson["name"] = chipIdA;
+    addSwitchAJson["service"] = "Switch";
+    String addSwitchAString;
+    addSwitchAJson.printTo(addSwitchAString);
+    client.publish(addtopic,addSwitchAString);
+  }
 }
 
 void maintAccessory(){
@@ -398,12 +686,9 @@ void callback(const MQTT::Publish& pub){
     }
   }
     else if (gettopic == std::string(pubTopic)){
-      if (accessoryName == std::string(chipId) || accessoryName == std::string(chipIdA) || accessoryName == std::string(chipIdB) || accessoryName == std::string(chipIdC) || accessoryName == std::string(chipIdD) || accessoryName == std::string(chipIdE)){
+      if (accessoryName == std::string(chipId) || accessoryName == std::string(chipIdA) || accessoryName == std::string(chipIdB) || accessoryName == std::string(chipIdC) || accessoryName == std::string(chipIdD) || accessoryName == std::string(chipIdE) || accessoryName == std::string(chipIdF) || accessoryName == std::string(chipIdG)){
         accessoryCharacteristic = mqttAccessory["characteristic"];
         getAccessory();
       }
-  }
-  else if(accessoryName != std::string(chipId)){
-    //
   }
 }
