@@ -9,6 +9,8 @@
 #include <ESP8266httpUpdate.h>
 #include <PubSubClient.h>
 #include <DHT.h>
+#include <Wire.h>
+#include "Adafruit_MCP23017.h"
 #define DHTTYPE DHT11
 #define DHTPIN  16
 
@@ -79,6 +81,8 @@ unsigned long lastDebounceCTime = 0;
 unsigned long lastDebounceDTime = 0;
 unsigned long debounceDelay = 60;
 
+Adafruit_MCP23017 mcp;
+
 IPAddress server(10, 1, 1, 1);
 WiFiClient wclient;
 PubSubClient client(wclient, server);
@@ -105,26 +109,27 @@ void setup() {
     chipId_stringB.toCharArray(chipIdB,64);
     chipId_stringC.toCharArray(chipIdC,64);
     chipId_stringD.toCharArray(chipIdD,64);
+    mcp.begin();
     #define ledAPin 0
-    #define ledBPin 2
-    #define ledCPin 15
-    #define ledDPin 5
-    #define switchAPin 12
-    #define switchBPin 13
-    #define switchCPin 14
-    #define switchDPin 4
-    pinMode(ledAPin, OUTPUT);
-    pinMode(ledBPin, OUTPUT);
-    pinMode(ledCPin, OUTPUT);
-    pinMode(ledDPin, OUTPUT);
-    pinMode(switchAPin, INPUT);
-    pinMode(switchBPin, INPUT);
-    pinMode(switchCPin, INPUT);
-    pinMode(switchDPin, INPUT);
-    digitalWrite(ledAPin, LOW);
-    digitalWrite(ledBPin, LOW);
-    digitalWrite(ledCPin, LOW);
-    digitalWrite(ledDPin, LOW);
+    #define ledBPin 1
+    #define ledCPin 2
+    #define ledDPin 3
+    #define switchAPin 4
+    #define switchBPin 5
+    #define switchCPin 6
+    #define switchDPin 7
+    mcp.pinMode(ledAPin, OUTPUT);
+    mcp.pinMode(ledBPin, OUTPUT);
+    mcp.pinMode(ledCPin, OUTPUT);
+    mcp.pinMode(ledDPin, OUTPUT);
+    mcp.pinMode(switchAPin, INPUT);
+    mcp.pinMode(switchBPin, INPUT);
+    mcp.pinMode(switchCPin, INPUT);
+    mcp.pinMode(switchDPin, INPUT);
+    mcp.digitalWrite(ledAPin, LOW);
+    mcp.digitalWrite(ledBPin, LOW);
+    mcp.digitalWrite(ledCPin, LOW);
+    mcp.digitalWrite(ledDPin, LOW);
     digitalSwitchAState = false;
     digitalSwitchBState = false;
     digitalSwitchCState = false;
@@ -146,20 +151,20 @@ void setup() {
     chipId_stringB.toCharArray(chipIdB,64);
     chipId_stringC.toCharArray(chipIdC,64);
     #define ledAPin 0
-    #define ledBPin 2
-    #define ledCPin 15
-    #define switchAPin 12
-    #define switchBPin 13
-    #define switchCPin 14
-    pinMode(ledAPin, OUTPUT);
-    pinMode(ledBPin, OUTPUT);
-    pinMode(ledCPin, OUTPUT);
-    pinMode(switchAPin, INPUT);
-    pinMode(switchBPin, INPUT);
-    pinMode(switchCPin, INPUT);
-    digitalWrite(ledAPin, LOW);
-    digitalWrite(ledBPin, LOW);
-    digitalWrite(ledCPin, LOW);
+    #define ledBPin 1
+    #define ledCPin 2
+    #define switchAPin 4
+    #define switchBPin 5
+    #define switchCPin 6
+    mcp.pinMode(ledAPin, OUTPUT);
+    mcp.pinMode(ledBPin, OUTPUT);
+    mcp.pinMode(ledCPin, OUTPUT);
+    mcp.pinMode(switchAPin, INPUT);
+    mcp.pinMode(switchBPin, INPUT);
+    mcp.pinMode(switchCPin, INPUT);
+    mcp.digitalWrite(ledAPin, LOW);
+    mcp.digitalWrite(ledBPin, LOW);
+    mcp.digitalWrite(ledCPin, LOW);
     digitalSwitchAState = false;
     digitalSwitchBState = false;
     digitalSwitchCState = false;
@@ -176,15 +181,15 @@ void setup() {
     chipId_stringA.toCharArray(chipIdA,64);
     chipId_stringB.toCharArray(chipIdB,64);
     #define ledAPin 0
-    #define ledBPin 2
-    #define switchAPin 12
-    #define switchBPin 13
-    pinMode(ledAPin, OUTPUT);
-    pinMode(ledBPin, OUTPUT);
-    pinMode(switchAPin, INPUT);
-    pinMode(switchBPin, INPUT);
-    digitalWrite(ledAPin, LOW);
-    digitalWrite(ledBPin, LOW);
+    #define ledBPin 1
+    #define switchAPin 4
+    #define switchBPin 5
+    mcp.pinMode(ledAPin, OUTPUT);
+    mcp.pinMode(ledBPin, OUTPUT);
+    mcp.pinMode(switchAPin, INPUT);
+    mcp.pinMode(switchBPin, INPUT);
+    mcp.digitalWrite(ledAPin, LOW);
+    mcp.digitalWrite(ledBPin, LOW);
     digitalSwitchAState = false;
     digitalSwitchBState = false;
     switchAState = false;
@@ -196,10 +201,10 @@ void setup() {
     chipId_stringA = "SwitchA"+String(ESP.getChipId());
     chipId_stringA.toCharArray(chipIdA,64);
     #define ledAPin 0
-    #define switchAPin 12
-    pinMode(ledAPin, OUTPUT);
-    pinMode(switchAPin, INPUT);
-    digitalWrite(ledAPin, LOW);
+    #define switchAPin 4
+    mcp.pinMode(ledAPin, OUTPUT);
+    mcp.pinMode(switchAPin, INPUT);
+    mcp.digitalWrite(ledAPin, LOW);
     digitalSwitchAState = false;
     switchAState = false;
     oldSwitchAState = false;
@@ -208,8 +213,8 @@ void setup() {
       chipId_stringE = "ContactSensor"+String(ESP.getChipId());
       chipId_stringE.toCharArray(chipIdE,64);
       #define contactPin 13
-      pinMode(contactPin, INPUT);
-      oldContactSensorState = digitalRead(contactPin);
+      mcp.pinMode(contactPin, INPUT);
+      oldContactSensorState = mcp.digitalRead(contactPin);
     }
     if(tempHumiSensorPresent == true){
       dht.begin();
@@ -272,10 +277,10 @@ void loop(){
 
     if (client.connected())
     if(numSwitches == 4){
-    currentSwitchAState = digitalRead(switchAPin);
-    currentSwitchBState = digitalRead(switchBPin);
-    currentSwitchCState = digitalRead(switchCPin);
-    currentSwitchDState = digitalRead(switchDPin);
+    currentSwitchAState = mcp.digitalRead(switchAPin);
+    currentSwitchBState = mcp.digitalRead(switchBPin);
+    currentSwitchCState = mcp.digitalRead(switchCPin);
+    currentSwitchDState = mcp.digitalRead(switchDPin);
       if(currentSwitchAState != oldSwitchAState){
         lastDebounceATime = millis();
       }
@@ -357,30 +362,30 @@ void loop(){
       oldSwitchCState = currentSwitchCState;
       oldSwitchDState = currentSwitchDState;
       if(digitalSwitchAState == true){
-        digitalWrite(ledAPin, HIGH);
+        mcp.digitalWrite(ledAPin, HIGH);
       }else{
-        digitalWrite(ledAPin, LOW);
+        mcp.digitalWrite(ledAPin, LOW);
       }
       if(digitalSwitchBState == true){
-        digitalWrite(ledBPin, HIGH);
+        mcp.digitalWrite(ledBPin, HIGH);
       }else{
-        digitalWrite(ledBPin, LOW);
+        mcp.digitalWrite(ledBPin, LOW);
       }
       if(digitalSwitchCState == true){
-        digitalWrite(ledCPin, HIGH);
+        mcp.digitalWrite(ledCPin, HIGH);
       }else{
-        digitalWrite(ledCPin, LOW);
+        mcp.digitalWrite(ledCPin, LOW);
       }
       if(digitalSwitchDState == true){
-        digitalWrite(ledDPin, HIGH);
+        mcp.digitalWrite(ledDPin, HIGH);
       }else{
-        digitalWrite(ledDPin, LOW);
+        mcp.digitalWrite(ledDPin, LOW);
       }
     }
     else if(numSwitches == 3){
-    currentSwitchAState = digitalRead(switchAPin);
-    currentSwitchBState = digitalRead(switchBPin);
-    currentSwitchCState = digitalRead(switchCPin);
+    currentSwitchAState = mcp.digitalRead(switchAPin);
+    currentSwitchBState = mcp.digitalRead(switchBPin);
+    currentSwitchCState = mcp.digitalRead(switchCPin);
       if(currentSwitchAState != oldSwitchAState){
         lastDebounceATime = millis();
       }else if(currentSwitchBState != oldSwitchBState){
@@ -440,24 +445,24 @@ void loop(){
       oldSwitchBState = currentSwitchBState;
       oldSwitchCState = currentSwitchCState;
       if(digitalSwitchAState == true){
-        digitalWrite(ledAPin, HIGH);
+        mcp.digitalWrite(ledAPin, HIGH);
       }else{
-        digitalWrite(ledAPin, LOW);
+        mcp.digitalWrite(ledAPin, LOW);
       }
       if(digitalSwitchBState == true){
-        digitalWrite(ledBPin, HIGH);
+        mcp.digitalWrite(ledBPin, HIGH);
       }else{
-        digitalWrite(ledBPin, LOW);
+        mcp.digitalWrite(ledBPin, LOW);
       }
       if(digitalSwitchCState == true){
-        digitalWrite(ledCPin, HIGH);
+        mcp.digitalWrite(ledCPin, HIGH);
       }else{
-        digitalWrite(ledCPin, LOW);
+        mcp.digitalWrite(ledCPin, LOW);
       }
     }
     else if(numSwitches == 2){
-    currentSwitchAState = digitalRead(switchAPin);
-    currentSwitchBState = digitalRead(switchBPin);
+    currentSwitchAState = mcp.digitalRead(switchAPin);
+    currentSwitchBState = mcp.digitalRead(switchBPin);
       if(currentSwitchAState != oldSwitchAState){
         lastDebounceATime = millis();
       }else if(currentSwitchBState != oldSwitchBState){
@@ -498,18 +503,18 @@ void loop(){
       oldSwitchAState = currentSwitchAState;
       oldSwitchBState = currentSwitchBState;
       if(digitalSwitchAState == true){
-        digitalWrite(ledAPin, HIGH);
+        mcp.digitalWrite(ledAPin, HIGH);
       }else{
-        digitalWrite(ledAPin, LOW);
+        mcp.digitalWrite(ledAPin, LOW);
       }
       if(digitalSwitchBState == true){
-        digitalWrite(ledBPin, HIGH);
+        mcp.digitalWrite(ledBPin, HIGH);
       }else{
-        digitalWrite(ledBPin, LOW);
+        mcp.digitalWrite(ledBPin, LOW);
       }
     }
     else if(numSwitches == 1){
-    currentSwitchAState = digitalRead(switchAPin);
+    currentSwitchAState = mcp.digitalRead(switchAPin);
       if(currentSwitchAState != oldSwitchAState){
         lastDebounceATime = millis();
       }
@@ -531,13 +536,13 @@ void loop(){
       }
       oldSwitchAState = currentSwitchAState;
       if(digitalSwitchAState == true){
-        digitalWrite(ledAPin, HIGH);
+        mcp.digitalWrite(ledAPin, HIGH);
       }else{
-        digitalWrite(ledAPin, LOW);
+        mcp.digitalWrite(ledAPin, LOW);
       }
     }
     if(contactSensorPresent == true){
-      currentContactSensorState = digitalRead(contactPin);
+      currentContactSensorState = mcp.digitalRead(contactPin);
           if(currentContactSensorState == true){
           contactSensorState = 1;
           }
