@@ -7,6 +7,7 @@ Homebridge: https://github.com/nfarina/homebridge
 Homebridge-mqtt: https://github.com/cflurin/homebridge-mqtt
 
 ToDo:
+
 ! Done
 
 - In Progress
@@ -14,8 +15,7 @@ ToDo:
 X Postponed
 
 	Switch:
-	! Make the Temp/Humi sensor configurable to on or off.
-	- Add ability for door lock?
+	- Add ability for door lock/ doorbell?
 	- Possible web page configuration or grabbing settings from a central location.
 	
 	Thermostat:

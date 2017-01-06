@@ -40,7 +40,7 @@ String chipId_string;
 String chipId_stringA;
 String chipId_stringB;
 
-IPAddress server(10, 1, 0, 1);
+IPAddress server(10, 1, 1, 1);
 WiFiClient wclient;
 PubSubClient client(wclient, server);
 
