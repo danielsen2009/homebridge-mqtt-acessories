@@ -142,6 +142,7 @@ void addAccessory(){
     addThermostatJson["TargetHeatingCoolingState"] = 0;
     addThermostatJson["CurrentTemperature"] = 0;
     addThermostatJson["TargetTemperature"] = 0;
+    addThermostatJson["TemperatureDisplayUnits"] = 1;
     addThermostatJson["CurrentRelativeHumidity"] = 0;
     addThermostatJson["CoolingThresholdTemperature"] = 0;
     addThermostatJson["HeatingThresholdTemperature"] = 0;
