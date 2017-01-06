@@ -18,8 +18,8 @@ uint chipId_int;
 uint16_t i;
 char serviceType[64] = "Switch";
 int numSwitches = 1; //1-4
-bool contactSensorPresent = true;
-bool tempHumiSensorPresent = true;
+bool contactSensorPresent = false;
+bool tempHumiSensorPresent = false;
 char chipId[64];
 char chipIdA[64];
 char chipIdB[64];
@@ -88,6 +88,8 @@ DHT dht(DHTPIN, DHTTYPE, 11);
 
 float humidity, temp_f;
 unsigned long previousMillis = 0;
+unsigned long previousTempMillis = 0;
+
 const long interval = 2000;
 unsigned long lasttemphumipublish = 0;
 const long temphumipublishtime = 60000;
@@ -217,7 +219,6 @@ void setup() {
     wifi_conn();
     ArduinoOTA.setPort(8266);
     ArduinoOTA.setHostname(chipId);
-    // No authentication by default
     // ArduinoOTA.setPassword((const char *)"123");
     ArduinoOTA.onStart([]() {
     Serial.println("Start");
@@ -279,11 +280,14 @@ void loop(){
     currentSwitchDState = digitalRead(switchDPin);
       if(currentSwitchAState != oldSwitchAState){
         lastDebounceATime = millis();
-      }else if(currentSwitchBState != oldSwitchBState){
+      }
+      else if(currentSwitchBState != oldSwitchBState){
         lastDebounceBTime = millis();
-      }else if(currentSwitchCState != oldSwitchCState){
+      }
+      else if(currentSwitchCState != oldSwitchCState){
         lastDebounceCTime = millis();
-      }else if(currentSwitchDState != oldSwitchDState){
+      }
+      else if(currentSwitchDState != oldSwitchDState){
         lastDebounceDTime = millis();
       }
       if ((millis() - lastDebounceATime) > debounceDelay) {
@@ -554,6 +558,13 @@ void loop(){
         oldContactSensorState = currentContactSensorState;
     }
     }
+    if(tempHumiSensorPresent == true){
+      unsigned long currentTempMillis = millis();
+      if(currentTempMillis - previousTempMillis >= temphumipublishtime){
+        previousTempMillis = currentTempMillis;
+        gettemperature();
+      }
+    }
       client.loop();
   } else {
     wifi_conn();
@@ -654,6 +665,23 @@ void addAccessory(){
     addContactSensorJson.printTo(addContactSensorString);
     client.publish(addtopic,addContactSensorString);
   }
+  if(tempHumiSensorPresent == true){
+    StaticJsonBuffer<200> jsonAddTempSensorBuffer;
+    JsonObject& addTempSensorJson = jsonAddTempSensorBuffer.createObject();
+    addTempSensorJson["name"] = chipIdF;
+    addTempSensorJson["service"] = "TemperatureSensor";
+    String addTempSensorString;
+    addTempSensorJson.printTo(addTempSensorString);
+    client.publish(addtopic,addTempSensorString);
+
+    StaticJsonBuffer<200> jsonAddHumiSensorBuffer;
+    JsonObject& addHumiSensorJson = jsonAddHumiSensorBuffer.createObject();
+    addHumiSensorJson["name"] = chipIdG;
+    addHumiSensorJson["service"] = "HumiditySensor";
+    String addHumiSensorString;
+    addHumiSensorJson.printTo(addHumiSensorString);
+    client.publish(addtopic,addHumiSensorString);
+  }
 }
 
 void maintAccessory(){
@@ -716,6 +744,10 @@ void getAccessory(){
       getSwitchJson["value"] = currentSwitchDState;
     }else if(accessoryName == std::string(chipIdE)){
       getSwitchJson["value"] = currentContactSensorState;
+    }else if(accessoryName == std::string(chipIdF)){
+      getSwitchJson["value"] = temp_df;
+    }else if(accessoryName == std::string(chipIdG)){
+      getSwitchJson["value"] = humi_d;
     }
     String getSwitchString;
     getSwitchJson.printTo(getSwitchString);
@@ -723,25 +755,29 @@ void getAccessory(){
 }
 
 void gettemperature() {
-  // Wait at least 2 seconds seconds between measurements.
-  // if the difference between the current time and last time you read
-  // the sensor is bigger than the interval you set, read the sensor
-  // Works better than delay for things happening elsewhere also
   unsigned long currentMillis = millis();
- 
-  if(currentMillis - previousMillis >= interval) {
-    // save the last time you read the sensor 
-    previousMillis = currentMillis;   
- 
-    // Reading temperature for humidity takes about 250 milliseconds!
-    // Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
-    humidity = dht.readHumidity();          // Read humidity (percent)
-    temp_f = dht.readTemperature(true);     // Read temperature as Fahrenheit
-    // Check if any reads failed and exit early (to try again).
-    if (isnan(humidity) || isnan(temp_f)) {
-      humidity = 0;          // Read humidity (percent)
-      temp_f = 0;
-    }
+  if(currentMillis - previousMillis >= interval) { 
+    previousMillis = currentMillis;
+    humi_d = dht.readHumidity();
+    temp_f = dht.readTemperature(true);
+    
+    StaticJsonBuffer<200> getTempBuffer;
+    JsonObject& getTempJson = getTempBuffer.createObject();
+    getTempJson["name"] = accessoryName;
+    getTempJson["characteristic"] = "CurrentTemperature";
+    getTempJson["value"] = temp_df;
+    String getTempString;
+    getTempJson.printTo(getTempString);
+    client.publish(outtopic,getTempString);
+
+    StaticJsonBuffer<200> getHumiBuffer;
+    JsonObject& getHumiJson = getHumiBuffer.createObject();
+    getHumiJson["name"] = accessoryName;
+    getHumiJson["characteristic"] = "CurrentRelativeHumidity";
+    getHumiJson["value"] = humi_d;
+    String getHumiString;
+    getHumiJson.printTo(getHumiString);
+    client.publish(outtopic,getHumiString);
   }
 }
 
