@@ -15,8 +15,9 @@ ToDo:
 X Postponed
 
 	Switch:
-	- Add ability for door lock/ doorbell?
+	X Add ability for door lock/ doorbell?
 	- Possible web page configuration or grabbing settings from a central location.
 	
 	Thermostat:
-	 - Make
+	 - Build out functionality.
+	 - Add support for physical controls?

@@ -72,8 +72,6 @@ String chipId_stringD;
 String chipId_stringE;
 String chipId_stringF;
 String chipId_stringG;
-String temp_df;
-String humi_d;
 
 unsigned long lastDebounceATime = 0;
 unsigned long lastDebounceBTime = 0;
@@ -86,7 +84,7 @@ WiFiClient wclient;
 PubSubClient client(wclient, server);
 DHT dht(DHTPIN, DHTTYPE, 11);
 
-float humidity, temp_f;
+float humi_d, temp_df;
 unsigned long previousMillis = 0;
 unsigned long previousTempMillis = 0;
 
@@ -759,7 +757,7 @@ void gettemperature() {
   if(currentMillis - previousMillis >= interval) { 
     previousMillis = currentMillis;
     humi_d = dht.readHumidity();
-    temp_f = dht.readTemperature(true);
+    temp_df = dht.readTemperature(true);
     
     StaticJsonBuffer<200> getTempBuffer;
     JsonObject& getTempJson = getTempBuffer.createObject();
