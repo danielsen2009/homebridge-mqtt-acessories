@@ -8,6 +8,8 @@
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
 #include <PubSubClient.h>
+#define topOutlet 16
+#define bottomOutlet 14
 
 const char* ssid = "SSID";
 const char* password = "PASSWORD";
@@ -52,8 +54,6 @@ void setup() {
   chipId_string.toCharArray(chipId,64);
   chipId_stringA.toCharArray(chipIdA,32);
   chipId_stringB.toCharArray(chipIdB,32);
-  #define topOutlet 16
-  #define bottomOutlet 14
   pinMode(topOutlet, OUTPUT);
   pinMode(bottomOutlet, OUTPUT);
   digitalWrite(topOutlet, HIGH);

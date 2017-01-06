@@ -11,6 +11,10 @@
 #include <DHT.h>
 #define DHTTYPE DHT11
 #define DHTPIN  16
+#define powerPin 0
+#define coolPin 2
+#define hotPin 4
+#define fanPin 5
 
 const char* ssid = "SSID";
 const char* password = "Password";
@@ -55,6 +59,14 @@ void setup() {
     chipId_string = serviceType+String(ESP.getChipId());
     chipId_string.toCharArray(chipId,64);
     dht.begin();
+    pinMode(powerPin, OUTPUT);
+    pinMode(hotPin, OUTPUT);
+    pinMode(coolPin, OUTPUT);
+    pinMode(fanPin, OUTPUT);
+    digitalWrite(powerPin, LOW);
+    digitalWrite(hotPin, HIGH);
+    digitalWrite(coolPin, HIGH);
+    digitalWrite(fanPin, HIGH);
     wifi_conn();
     ArduinoOTA.setPort(8266);
     ArduinoOTA.setHostname(chipId);
