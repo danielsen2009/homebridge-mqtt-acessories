@@ -12,8 +12,7 @@
 #define DHTTYPE DHT11
 #define DHTPIN  16
 #define powerPin 0
-#define coolPin 2
-#define hotPin 4
+#define hotCoolPin 4
 #define fanPin 5
 
 const char* ssid = "SSID";
@@ -60,13 +59,11 @@ void setup() {
     chipId_string.toCharArray(chipId,64);
     dht.begin();
     pinMode(powerPin, OUTPUT);
-    pinMode(hotPin, OUTPUT);
-    pinMode(coolPin, OUTPUT);
+    pinMode(hotCoolPin, OUTPUT);
     pinMode(fanPin, OUTPUT);
-    digitalWrite(powerPin, LOW);
-    digitalWrite(hotPin, HIGH);
-    digitalWrite(coolPin, HIGH);
-    digitalWrite(fanPin, HIGH);
+    digitalWrite(powerPin, LOW); //Provides power to hot/cool
+    digitalWrite(hotCoolPin, LOW); //Low = Hot, High = Cool. Use NO NC on relay. Didn't want it to be possible for hot and cool to be on at the same time with possible freeze/crash.
+    digitalWrite(fanPin, LOW); // Gets power directly from 24v so fan can remain on after hot or cool is turned off. Later use with Air Quality Sensor
     wifi_conn();
     ArduinoOTA.setPort(8266);
     ArduinoOTA.setHostname(chipId);
@@ -92,23 +89,17 @@ void setup() {
 }
 
 void wifi_conn(){
-  Serial.print("Connecting to ");
-  Serial.print(ssid);
-  Serial.println();
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println();
-  Serial.println("WiFi connected");  
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
 }
 
 void loop(){
     ArduinoOTA.handle();
+    gettemperature();
     if (WiFi.status() == WL_CONNECTED) {
     if (!client.connected()) {
       if (client.connect(MQTT::Connect(chipId)
@@ -123,10 +114,10 @@ void loop(){
       }
     }
     if (client.connected())
-      currentTempMillis = millis();
+    currentTempMillis = millis();
       if(currentTempMillis - previousTempMillis >= temphumipublishtime){
         previousTempMillis = currentTempMillis;
-        gettemperature();
+        publishtemperature();
       }
       client.loop();
   } else {
@@ -160,26 +151,30 @@ void removeAccessory(){
 }
 
 void setAccessory(){
-    StaticJsonBuffer<200> setSwitchBuffer;
-    JsonObject& setSwitchJson = setSwitchBuffer.createObject();
-    setSwitchJson["name"] = chipId;
-    setSwitchJson["characteristic"] = accessoryCharacteristic;
-    setSwitchJson["value"] = "";
-    String setSwitchString;
-    setSwitchJson.printTo(setSwitchString);
-    client.publish(outtopic,setSwitchString);
+    StaticJsonBuffer<200> setEnvBuffer;
+    JsonObject& setEnvJson = setEnvBuffer.createObject();
+    setEnvJson["name"] = chipId;
+    setEnvJson["characteristic"] = accessoryCharacteristic;
+    setEnvJson["value"] = "";
+    String setEnvString;
+    setEnvJson.printTo(setEnvString);
+    client.publish(outtopic,setEnvString);
   }
 
 void getAccessory(){
-    StaticJsonBuffer<200> getSwitchBuffer;
-    JsonObject& getSwitchJson = getSwitchBuffer.createObject();
-    getSwitchJson["name"] = accessoryName;
-    getSwitchJson["characteristic"] = accessoryCharacteristic;
-    getSwitchJson["value"] = temp_df;
-    getSwitchJson["value"] = humi_d;
-    String getSwitchString;
-    getSwitchJson.printTo(getSwitchString);
-    client.publish(outtopic,getSwitchString);
+    StaticJsonBuffer<200> getEnvBuffer;
+    JsonObject& getEnvJson = getEnvBuffer.createObject();
+    getEnvJson["name"] = accessoryName;
+    getEnvJson["characteristic"] = accessoryCharacteristic;
+    if(accessoryCharacteristic == std::string("CurrentTemperature")){
+    getEnvJson["value"] = temp_df;
+    }
+    if(accessoryCharacteristic == std::string("CurrentRelativeHumidity")){
+    getEnvJson["value"] = humi_d;
+    }
+    String getEnvString;
+    getEnvJson.printTo(getEnvString);
+    client.publish(outtopic,getEnvString);
 }
 
 void gettemperature() {
@@ -188,7 +183,10 @@ void gettemperature() {
     previousMillis = currentMillis;
     humi_d = dht.readHumidity();
     temp_df = dht.readTemperature(true);
-    
+  }
+}
+
+void publishtemperature(){
     StaticJsonBuffer<200> getTempBuffer;
     JsonObject& getTempJson = getTempBuffer.createObject();
     getTempJson["name"] = accessoryName;
@@ -206,7 +204,6 @@ void gettemperature() {
     String getHumiString;
     getHumiJson.printTo(getHumiString);
     client.publish(outtopic,getHumiString);
-  }
 }
 
 void callback(const MQTT::Publish& pub){

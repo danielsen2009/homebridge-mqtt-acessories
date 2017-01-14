@@ -25,4 +25,4 @@ X Postponed
 	
 	Thermostat:
 	 - Build out functionality.
-	 - Add support for physical controls?
+	 - Add support for 3.5" Nextion Touch Display
