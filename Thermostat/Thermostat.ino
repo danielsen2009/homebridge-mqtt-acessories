@@ -286,7 +286,30 @@ void setHeatCoolState(){
     }
   }
   if(targetHeatCoolState = 3){ //Auto
-    
+    if(temp_df < heatThresholdTemperature){
+      currentHeatCoolState = 1;
+      digitalWrite(powerPin, HIGH);
+      digitalWrite(hotCoolPin, LOW);
+      digitalWrite(fanPin, HIGH);
+    }
+    if(temp_df >= heatThresholdTemperature){
+      currentHeatCoolState = 0;
+      digitalWrite(powerPin, LOW);
+      digitalWrite(hotCoolPin, LOW);
+      digitalWrite(fanPin, LOW);
+    }
+    if(temp_df > coolThresholdTemperature){
+      currentHeatCoolState = 2;
+      digitalWrite(powerPin, HIGH);
+      digitalWrite(hotCoolPin, HIGH);
+      digitalWrite(fanPin, HIGH);
+    }
+    if(temp_df <= coolThresholdTemperature){
+      currentHeatCoolState = 0;
+      digitalWrite(powerPin, LOW);
+      digitalWrite(hotCoolPin, HIGH);
+      digitalWrite(fanPin, LOW);
+    }
   }
 }
 

@@ -22,14 +22,11 @@ X Postponed
 	- Add first time boot registration and updating availability after booting after the first pairing.
 
 	Switch:
-	! Add MCP23017 I2c Port Expander (Need more I/O!).
-	! Move loop functions so switches and relays work in case of network problems.
 	- Separate get and post functions.
 	- Add ability for door lock/ doorbell?
-	! Add support for relays connected to switches.
 	- Possible web page configuration or grabbing settings from a central location.
 	
 	Thermostat:
-	 - Build out functionality.
+	 ! Build out functionality.
 	 - Add fan start and stop delay.
 	 - Add support for 3.5" Nextion Touch Display
