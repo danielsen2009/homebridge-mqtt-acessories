@@ -36,6 +36,12 @@ const char* accessoryName;
 const char* accessoryCharacteristic;
 const char* accessoryValue;
 const char* accessoryValueString;
+const char* targetTemperature;
+const char* targetHeatCoolState;
+const char* currentHeatCoolState;
+const char* tempDisplayUnits;
+const char* coolThresholdTemperature;
+const char* heatThresholdTemperature;
 
 String chipId_string;
 
@@ -155,7 +161,26 @@ void setAccessory(){
     JsonObject& setEnvJson = setEnvBuffer.createObject();
     setEnvJson["name"] = chipId;
     setEnvJson["characteristic"] = accessoryCharacteristic;
-    setEnvJson["value"] = "";
+    if(accessoryCharacteristic == std::string("TargetTemperature")){
+      targetTemperature = accessoryValue;
+      setEnvJson["value"] = accessoryValue;
+    }
+    if(accessoryCharacteristic == std::string("TargetHeatingCoolingState")){
+      targetHeatCoolState = accessoryValue;
+      setEnvJson["value"] = accessoryValue;
+    }
+    if(accessoryCharacteristic == std::string("TemperatureDisplayUnits")){
+      tempDisplayUnits = accessoryValue;
+      setEnvJson["value"] = accessoryValue;
+    }
+    if(accessoryCharacteristic == std::string("CoolingThresholdTemperature")){
+      coolThresholdTemperature = accessoryValue;
+      setEnvJson["value"] = accessoryValue;
+    }
+    if(accessoryCharacteristic == std::string("HeatingThresholdTemperature")){
+      heatThresholdTemperature = accessoryValue;
+      setEnvJson["value"] = accessoryValue;
+    }
     String setEnvString;
     setEnvJson.printTo(setEnvString);
     client.publish(outtopic,setEnvString);
