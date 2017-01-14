@@ -6,6 +6,8 @@ Homebridge: https://github.com/nfarina/homebridge
 
 Homebridge-mqtt: https://github.com/cflurin/homebridge-mqtt
 
+ArduinoJson: https://github.com/bblanchon/ArduinoJson
+
 ToDo:
 
 ! Done
@@ -29,4 +31,5 @@ X Postponed
 	
 	Thermostat:
 	 - Build out functionality.
+	 - Add fan start and stop delay.
 	 - Add support for 3.5" Nextion Touch Display

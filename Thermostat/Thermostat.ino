@@ -67,8 +67,11 @@ void setup() {
     digitalWrite(powerPin, LOW); //Provides power to hot/cool
     digitalWrite(hotCoolPin, LOW); //Low = Hot, High = Cool. Use NO NC on relay. Didn't want it to be possible for hot and cool to be on at the same time with possible freeze/crash.
     digitalWrite(fanPin, LOW); // Gets power directly from 24v so fan can remain on after hot or cool is turned off. Later use with Air Quality Sensor
+    currentHeatCoolState = 0;
+    targetHeatCoolState = 0;
     coolThresholdTemperature = 75.0;
     heatThresholdTemperature = 68.0;
+    targetTemperature = 70.0;
     wifi_conn();
     ArduinoOTA.setPort(8266);
     ArduinoOTA.setHostname(chipId);
@@ -105,6 +108,7 @@ void wifi_conn(){
 void loop(){
     ArduinoOTA.handle();
     gettemperature();
+    setHeatCoolState();
     if (WiFi.status() == WL_CONNECTED) {
     if (!client.connected()) {
       if (client.connect(MQTT::Connect(chipId)
@@ -134,10 +138,10 @@ void addAccessory(){
     StaticJsonBuffer<200> jsonAddThermostatBuffer;
     JsonObject& addThermostatJson = jsonAddThermostatBuffer.createObject();
     addThermostatJson["name"] = chipId;
-    addThermostatJson["CurrentHeatingCoolingState"] = 0;
-    addThermostatJson["TargetHeatingCoolingState"] = 0;
+    addThermostatJson["TargetHeatingCoolingState"] = targetHeatCoolState;
+    addThermostatJson["CurrentHeatingCoolingState"] = currentHeatCoolState;
     addThermostatJson["CurrentTemperature"] = temp_df;
-    addThermostatJson["TargetTemperature"] = 0;
+    addThermostatJson["TargetTemperature"] = targetTemperature;
     addThermostatJson["TemperatureDisplayUnits"] = 1;
     addThermostatJson["CurrentRelativeHumidity"] = humi_d;
     addThermostatJson["CoolingThresholdTemperature"] = coolThresholdTemperature;
@@ -249,7 +253,41 @@ void publishtemperature(){
 }
 
 void setHeatCoolState(){
-  
+  if(targetHeatCoolState = 0){ //Off
+    digitalWrite(powerPin, LOW); //Provides power to hot/cool
+    digitalWrite(hotCoolPin, LOW); //Low = Hot, High = Cool. Use NO NC on relay. Didn't want it to be possible for hot and cool to be on at the same time with possible freeze/crash.
+    digitalWrite(fanPin, LOW);
+    currentHeatCoolState = 0;
+  }
+  if(targetHeatCoolState = 1){ //Heat
+    currentHeatCoolState = 1;
+    if(temp_df < targetTemperature){
+      digitalWrite(powerPin, HIGH); //Provides power to hot/cool
+      digitalWrite(hotCoolPin, LOW); //Low = Hot, High = Cool. Use NO NC on relay. Didn't want it to be possible for hot and cool to be on at the same time with possible freeze/crash.
+      digitalWrite(fanPin, HIGH);
+    }
+    if(temp_df >= targetTemperature){
+      digitalWrite(powerPin, LOW); //Provides power to hot/cool
+      digitalWrite(hotCoolPin, LOW); //Low = Hot, High = Cool. Use NO NC on relay. Didn't want it to be possible for hot and cool to be on at the same time with possible freeze/crash.
+      digitalWrite(fanPin, LOW);
+    }
+  }
+  if(targetHeatCoolState = 2){ //Cool
+    currentHeatCoolState = 2;
+    if(temp_df > targetTemperature){
+      digitalWrite(powerPin, HIGH); //Provides power to hot/cool
+      digitalWrite(hotCoolPin, HIGH); //Low = Hot, High = Cool. Use NO NC on relay. Didn't want it to be possible for hot and cool to be on at the same time with possible freeze/crash.
+      digitalWrite(fanPin, HIGH);
+    }
+    if(temp_df <= targetTemperature){
+      digitalWrite(powerPin, LOW); //Provides power to hot/cool
+      digitalWrite(hotCoolPin, HIGH); //Low = Hot, High = Cool. Use NO NC on relay. Didn't want it to be possible for hot and cool to be on at the same time with possible freeze/crash.
+      digitalWrite(fanPin, LOW);
+    }
+  }
+  if(targetHeatCoolState = 3){ //Auto
+    
+  }
 }
 
 void callback(const MQTT::Publish& pub){
