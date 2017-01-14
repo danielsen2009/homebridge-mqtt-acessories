@@ -16,15 +16,15 @@ X Postponed
 
 	ALL:
 	- Better commenting in sketches.
+	- Add last state to eeprom so states survive restart - configurable to on or off.
+	- Add first time boot registration and updating availability after booting after the first pairing.
 
 	Switch:
 	! Add MCP23017 I2c Port Expander (Need more I/O!).
-	- Add last state to eeprom so states survive restart - configurable to on or off.
 	! Move loop functions so switches and relays work in case of network problems.
 	- Separate get and post functions.
-	- Add first time boot registration and updating availability after booting after the first pairing.
 	- Add ability for door lock/ doorbell?
-	- Add support for relays connected to switches.
+	! Add support for relays connected to switches.
 	- Possible web page configuration or grabbing settings from a central location.
 	
 	Thermostat:

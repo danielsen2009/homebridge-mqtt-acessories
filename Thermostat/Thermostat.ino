@@ -34,14 +34,11 @@ const char* mainttopic = "homebridge/from/connected";
 const char* maintmessage = "";
 const char* accessoryName;
 const char* accessoryCharacteristic;
-const char* accessoryValue;
+uint accessoryValue;
 const char* accessoryValueString;
-const char* targetTemperature;
-const char* targetHeatCoolState;
-const char* currentHeatCoolState;
-const char* tempDisplayUnits;
-const char* coolThresholdTemperature;
-const char* heatThresholdTemperature;
+uint targetHeatCoolState;
+uint currentHeatCoolState;
+uint tempDisplayUnits;
 
 String chipId_string;
 
@@ -50,7 +47,7 @@ WiFiClient wclient;
 PubSubClient client(wclient, server);
 DHT dht(DHTPIN, DHTTYPE, 11);
 
-float humi_d, temp_df;
+float humi_d, temp_df, targetTemperature, coolThresholdTemperature, heatThresholdTemperature, accessoryTempValue;
 unsigned long previousMillis = 0;
 unsigned long previousTempMillis = 0;
 unsigned long currentTempMillis = 0;
@@ -70,6 +67,8 @@ void setup() {
     digitalWrite(powerPin, LOW); //Provides power to hot/cool
     digitalWrite(hotCoolPin, LOW); //Low = Hot, High = Cool. Use NO NC on relay. Didn't want it to be possible for hot and cool to be on at the same time with possible freeze/crash.
     digitalWrite(fanPin, LOW); // Gets power directly from 24v so fan can remain on after hot or cool is turned off. Later use with Air Quality Sensor
+    coolThresholdTemperature = 75.0;
+    heatThresholdTemperature = 68.0;
     wifi_conn();
     ArduinoOTA.setPort(8266);
     ArduinoOTA.setHostname(chipId);
@@ -137,12 +136,12 @@ void addAccessory(){
     addThermostatJson["name"] = chipId;
     addThermostatJson["CurrentHeatingCoolingState"] = 0;
     addThermostatJson["TargetHeatingCoolingState"] = 0;
-    addThermostatJson["CurrentTemperature"] = 0;
+    addThermostatJson["CurrentTemperature"] = temp_df;
     addThermostatJson["TargetTemperature"] = 0;
     addThermostatJson["TemperatureDisplayUnits"] = 1;
-    addThermostatJson["CurrentRelativeHumidity"] = 0;
-    addThermostatJson["CoolingThresholdTemperature"] = 0;
-    addThermostatJson["HeatingThresholdTemperature"] = 0;
+    addThermostatJson["CurrentRelativeHumidity"] = humi_d;
+    addThermostatJson["CoolingThresholdTemperature"] = coolThresholdTemperature;
+    addThermostatJson["HeatingThresholdTemperature"] = heatThresholdTemperature;
     String addThermostatString;
     addThermostatJson.printTo(addThermostatString);
     client.publish(addtopic,addThermostatString);
@@ -162,8 +161,8 @@ void setAccessory(){
     setEnvJson["name"] = chipId;
     setEnvJson["characteristic"] = accessoryCharacteristic;
     if(accessoryCharacteristic == std::string("TargetTemperature")){
-      targetTemperature = accessoryValue;
-      setEnvJson["value"] = accessoryValue;
+      targetTemperature = accessoryTempValue;
+      setEnvJson["value"] = accessoryTempValue;
     }
     if(accessoryCharacteristic == std::string("TargetHeatingCoolingState")){
       targetHeatCoolState = accessoryValue;
@@ -174,12 +173,12 @@ void setAccessory(){
       setEnvJson["value"] = accessoryValue;
     }
     if(accessoryCharacteristic == std::string("CoolingThresholdTemperature")){
-      coolThresholdTemperature = accessoryValue;
-      setEnvJson["value"] = accessoryValue;
+      coolThresholdTemperature = accessoryTempValue;
+      setEnvJson["value"] = accessoryTempValue;
     }
     if(accessoryCharacteristic == std::string("HeatingThresholdTemperature")){
-      heatThresholdTemperature = accessoryValue;
-      setEnvJson["value"] = accessoryValue;
+      heatThresholdTemperature = accessoryTempValue;
+      setEnvJson["value"] = accessoryTempValue;
     }
     String setEnvString;
     setEnvJson.printTo(setEnvString);
@@ -196,6 +195,24 @@ void getAccessory(){
     }
     if(accessoryCharacteristic == std::string("CurrentRelativeHumidity")){
     getEnvJson["value"] = humi_d;
+    }
+    if(accessoryCharacteristic == std::string("CurrentHeatingCoolingState")){
+      getEnvJson["value"] = currentHeatCoolState;
+    }
+    if(accessoryCharacteristic == std::string("TargetTemperature")){
+      getEnvJson["value"] = targetTemperature;
+    }
+    if(accessoryCharacteristic == std::string("TargetHeatingCoolingState")){
+      getEnvJson["value"] = targetHeatCoolState;
+    }
+    if(accessoryCharacteristic == std::string("TemperatureDisplayUnits")){
+      getEnvJson["value"] = tempDisplayUnits;
+    }
+    if(accessoryCharacteristic == std::string("CoolingThresholdTemperature")){
+      getEnvJson["value"] = coolThresholdTemperature;
+    }
+    if(accessoryCharacteristic == std::string("HeatingThresholdTemperature")){
+      getEnvJson["value"] = heatThresholdTemperature;
     }
     String getEnvString;
     getEnvJson.printTo(getEnvString);
@@ -231,6 +248,10 @@ void publishtemperature(){
     client.publish(outtopic,getHumiString);
 }
 
+void setHeatCoolState(){
+  
+}
+
 void callback(const MQTT::Publish& pub){
   pub.topic().toCharArray(pubTopic,50);
   StaticJsonBuffer<200> jsoncallbackBuffer;
@@ -243,7 +264,12 @@ void callback(const MQTT::Publish& pub){
   else if(intopic == std::string(pubTopic)){
     if (accessoryName == std::string(chipId)){
       accessoryCharacteristic = mqttAccessory["characteristic"];
+      if(accessoryCharacteristic == std::string("TargetHeatingCoolingState") || accessoryCharacteristic == std::string("TemperatureDisplayUnits")){
       accessoryValue = mqttAccessory["value"];
+      }
+      if(accessoryCharacteristic == std::string("TargetTemperature") || accessoryCharacteristic == std::string("CoolingThresholdTemperature") || accessoryCharacteristic == std::string("HeatingThresholdTemperature")){
+        accessoryTempValue = mqttAccessory["value"];
+      }
       setAccessory();
     }
   }
