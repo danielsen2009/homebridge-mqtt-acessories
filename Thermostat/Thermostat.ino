@@ -39,6 +39,7 @@ const char* accessoryValueString;
 uint targetHeatCoolState;
 uint currentHeatCoolState;
 uint tempDisplayUnits;
+uint oldHeatCoolState;
 
 String chipId_string;
 
@@ -254,34 +255,34 @@ void publishtemperature(){
 
 void setHeatCoolState(){
   if(targetHeatCoolState = 0){ //Off
-    digitalWrite(powerPin, LOW); //Provides power to hot/cool
-    digitalWrite(hotCoolPin, LOW); //Low = Hot, High = Cool. Use NO NC on relay. Didn't want it to be possible for hot and cool to be on at the same time with possible freeze/crash.
+    digitalWrite(powerPin, LOW);
+    digitalWrite(hotCoolPin, LOW);
     digitalWrite(fanPin, LOW);
     currentHeatCoolState = 0;
   }
   if(targetHeatCoolState = 1){ //Heat
     currentHeatCoolState = 1;
     if(temp_df < targetTemperature){
-      digitalWrite(powerPin, HIGH); //Provides power to hot/cool
-      digitalWrite(hotCoolPin, LOW); //Low = Hot, High = Cool. Use NO NC on relay. Didn't want it to be possible for hot and cool to be on at the same time with possible freeze/crash.
+      digitalWrite(powerPin, HIGH);
+      digitalWrite(hotCoolPin, LOW);
       digitalWrite(fanPin, HIGH);
     }
     if(temp_df >= targetTemperature){
-      digitalWrite(powerPin, LOW); //Provides power to hot/cool
-      digitalWrite(hotCoolPin, LOW); //Low = Hot, High = Cool. Use NO NC on relay. Didn't want it to be possible for hot and cool to be on at the same time with possible freeze/crash.
+      digitalWrite(powerPin, LOW);
+      digitalWrite(hotCoolPin, LOW);
       digitalWrite(fanPin, LOW);
     }
   }
   if(targetHeatCoolState = 2){ //Cool
     currentHeatCoolState = 2;
     if(temp_df > targetTemperature){
-      digitalWrite(powerPin, HIGH); //Provides power to hot/cool
-      digitalWrite(hotCoolPin, HIGH); //Low = Hot, High = Cool. Use NO NC on relay. Didn't want it to be possible for hot and cool to be on at the same time with possible freeze/crash.
+      digitalWrite(powerPin, HIGH);
+      digitalWrite(hotCoolPin, HIGH);
       digitalWrite(fanPin, HIGH);
     }
     if(temp_df <= targetTemperature){
-      digitalWrite(powerPin, LOW); //Provides power to hot/cool
-      digitalWrite(hotCoolPin, HIGH); //Low = Hot, High = Cool. Use NO NC on relay. Didn't want it to be possible for hot and cool to be on at the same time with possible freeze/crash.
+      digitalWrite(powerPin, LOW);
+      digitalWrite(hotCoolPin, HIGH);
       digitalWrite(fanPin, LOW);
     }
   }
@@ -310,6 +311,30 @@ void setHeatCoolState(){
       digitalWrite(hotCoolPin, HIGH);
       digitalWrite(fanPin, LOW);
     }
+  }
+}
+
+void publishHeatCoolState(){
+  if(currentHeatCoolState != oldHeatCoolState){
+    StaticJsonBuffer<200> pubHeatCoolBuffer;
+    JsonObject& pubHeatCoolJson = pubHeatCoolBuffer.createObject();
+    pubHeatCoolJson["name"] = chipId;
+    pubHeatCoolJson["characteristic"] = "CurrentHeatingCoolingState";
+    if(currentHeatCoolState = 0){
+      pubHeatCoolJson["value"] = 0;
+      oldHeatCoolState = 0;
+      }
+    if(currentHeatCoolState = 1){
+      pubHeatCoolJson["value"] = 1;
+      oldHeatCoolState = 1;
+    }
+    if(currentHeatCoolState = 2){
+      pubHeatCoolJson["value"] = 2;
+      oldHeatCoolState = 2;
+    }
+    String pubHeatCoolString;
+    pubHeatCoolJson.printTo(pubHeatCoolString);
+    client.publish(outtopic,pubHeatCoolString);
   }
 }
 
