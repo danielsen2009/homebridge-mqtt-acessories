@@ -28,5 +28,5 @@ X Postponed
 	
 	Thermostat:
 	 ! Build out functionality.
-	 - Add fan start and stop delay.
+	 ! Add fan start and stop delay.
 	 - Add support for 3.5" Nextion Touch Display

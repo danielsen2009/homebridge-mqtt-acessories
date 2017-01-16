@@ -12,7 +12,7 @@
 #define DHTTYPE DHT11
 #define DHTPIN  16
 #define powerPin 0
-#define hotCoolPin 4
+#define hotCoolPin 4 //LOW = Heat, HIGH = Cool
 #define fanPin 5
 
 const char* ssid = "SSID";
@@ -40,6 +40,7 @@ uint targetHeatCoolState;
 uint currentHeatCoolState;
 uint tempDisplayUnits;
 uint oldHeatCoolState;
+bool timerState;
 
 String chipId_string;
 
@@ -52,10 +53,14 @@ float humi_d, temp_df, targetTemperature, coolThresholdTemperature, heatThreshol
 unsigned long previousMillis = 0;
 unsigned long previousTempMillis = 0;
 unsigned long currentTempMillis = 0;
+unsigned long prevFanDelayMillis = 0;
+unsigned long currentFanDelayMillis = 0;
+unsigned long lastSetAccessoryState = 0;
 
 const long interval = 2000;
 unsigned long lasttemphumipublish = 0;
 const long temphumipublishtime = 60000;
+const long fanDelayTime = 120000;
 
 void setup() {
     Serial.begin(74880);
@@ -172,6 +177,8 @@ void setAccessory(){
     if(accessoryCharacteristic == std::string("TargetHeatingCoolingState")){
       targetHeatCoolState = accessoryValue;
       setEnvJson["value"] = accessoryValue;
+      lastSetAccessoryState = millis();
+      timerState = 1;
     }
     if(accessoryCharacteristic == std::string("TemperatureDisplayUnits")){
       tempDisplayUnits = accessoryValue;
@@ -265,12 +272,10 @@ void setHeatCoolState(){
     if(temp_df < targetTemperature){
       digitalWrite(powerPin, HIGH);
       digitalWrite(hotCoolPin, LOW);
-      digitalWrite(fanPin, HIGH);
     }
     if(temp_df >= targetTemperature){
       digitalWrite(powerPin, LOW);
       digitalWrite(hotCoolPin, LOW);
-      digitalWrite(fanPin, LOW);
     }
   }
   if(targetHeatCoolState = 2){ //Cool
@@ -278,12 +283,10 @@ void setHeatCoolState(){
     if(temp_df > targetTemperature){
       digitalWrite(powerPin, HIGH);
       digitalWrite(hotCoolPin, HIGH);
-      digitalWrite(fanPin, HIGH);
     }
     if(temp_df <= targetTemperature){
       digitalWrite(powerPin, LOW);
       digitalWrite(hotCoolPin, HIGH);
-      digitalWrite(fanPin, LOW);
     }
   }
   if(targetHeatCoolState = 3){ //Auto
@@ -291,25 +294,21 @@ void setHeatCoolState(){
       currentHeatCoolState = 1;
       digitalWrite(powerPin, HIGH);
       digitalWrite(hotCoolPin, LOW);
-      digitalWrite(fanPin, HIGH);
     }
     if(temp_df >= heatThresholdTemperature){
       currentHeatCoolState = 0;
       digitalWrite(powerPin, LOW);
       digitalWrite(hotCoolPin, LOW);
-      digitalWrite(fanPin, LOW);
     }
     if(temp_df > coolThresholdTemperature){
       currentHeatCoolState = 2;
       digitalWrite(powerPin, HIGH);
       digitalWrite(hotCoolPin, HIGH);
-      digitalWrite(fanPin, HIGH);
     }
     if(temp_df <= coolThresholdTemperature){
       currentHeatCoolState = 0;
       digitalWrite(powerPin, LOW);
       digitalWrite(hotCoolPin, HIGH);
-      digitalWrite(fanPin, LOW);
     }
   }
 }
@@ -335,6 +334,19 @@ void publishHeatCoolState(){
     String pubHeatCoolString;
     pubHeatCoolJson.printTo(pubHeatCoolString);
     client.publish(outtopic,pubHeatCoolString);
+  }
+}
+
+void fanDelay(){
+  currentFanDelayMillis = millis();
+  if(currentFanDelayMillis - lastSetAccessoryState >= fanDelayTime && timerState == 1){
+    if(fanPin == HIGH){
+      digitalWrite(fanPin, LOW);
+    }
+    else if(fanPin == LOW){
+      digitalWrite(fanPin, HIGH);
+    }
+    timerState = 0;
   }
 }
 
