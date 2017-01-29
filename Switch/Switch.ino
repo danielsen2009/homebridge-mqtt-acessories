@@ -20,7 +20,7 @@ uint chipId_int;
 uint16_t i;
 char serviceType[64] = "Switch";
 int numSwitches = 1; //1-4
-bool contactSensorPresent = false;
+bool contactSensorPresent = true;
 bool tempHumiSensorPresent = false;
 char chipId[64];
 char chipIdA[64];
@@ -66,7 +66,6 @@ bool switchBState;
 bool switchCState;
 bool switchDState;
 
-String chipId_string;
 String chipId_stringA;
 String chipId_stringB;
 String chipId_stringC;
@@ -98,23 +97,27 @@ const long temphumipublishtime = 60000;
 
 void setup() {
     Serial.begin(74880);
-    mcp.begin();
+    String chipId_string;
     chipId_string = serviceType+String(ESP.getChipId());
     chipId_string.toCharArray(chipId,64);
     if(numSwitches == 1 || numSwitches == 2 || numSwitches == 3 || numSwitches == 4){
     chipId_stringA = "SwitchA"+String(ESP.getChipId());
     chipId_stringA.toCharArray(chipIdA,64);
-    #define ledAPin 0
-    #define switchAPin 4
-    mcp.pinMode(ledAPin, OUTPUT);
-    mcp.pinMode(switchAPin, INPUT);
-    mcp.digitalWrite(ledAPin, LOW);
+    #define ledAPin 14
+    #define switchAPin 13
+    #define relayAPin 12
+    pinMode(ledAPin, OUTPUT);
+    pinMode(switchAPin, INPUT);
+    pinMode(relayAPin, OUTPUT);
+    digitalWrite(ledAPin, LOW);
+    digitalWrite(relayAPin, LOW);
     digitalSwitchAState = false;
     switchAState = false;
     oldSwitchAState = false;
     if(numSwitches == 2 || numSwitches == 3 || numSwitches == 4){
     chipId_stringB = "SwitchB"+String(ESP.getChipId());
     chipId_stringB.toCharArray(chipIdB,64);
+    mcp.begin();
     #define ledBPin 1
     #define switchBPin 5
     mcp.pinMode(ledBPin, OUTPUT);
@@ -153,8 +156,8 @@ void setup() {
       chipId_stringE = "ContactSensor"+String(ESP.getChipId());
       chipId_stringE.toCharArray(chipIdE,64);
       #define contactPin 13
-      mcp.pinMode(contactPin, INPUT);
-      oldContactSensorState = mcp.digitalRead(contactPin);
+      pinMode(contactPin, INPUT);
+      oldContactSensorState = digitalRead(contactPin);
     }
     if(tempHumiSensorPresent == true){
       dht.begin();
@@ -224,9 +227,11 @@ void loop(){
       }
       oldSwitchAState = currentSwitchAState;
       if(digitalSwitchAState == true){
-        mcp.digitalWrite(ledAPin, HIGH);
+        digitalWrite(ledAPin, HIGH);
+        digitalWrite(relayAPin, HIGH);
       }else{
-        mcp.digitalWrite(ledAPin, LOW);
+        digitalWrite(ledAPin, LOW);
+        digitalWrite(relayAPin, LOW);
       }
       if(numSwitches == 2 || numSwitches == 3 || numSwitches == 4){
         currentSwitchBState = mcp.digitalRead(switchBPin);
@@ -315,7 +320,7 @@ void loop(){
                   }
                   }
     if(contactSensorPresent == true){
-      currentContactSensorState = mcp.digitalRead(contactPin);
+      currentContactSensorState = digitalRead(contactPin);
           if(currentContactSensorState == true){
           contactSensorState = 1;
           }

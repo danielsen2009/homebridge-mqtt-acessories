@@ -27,6 +27,7 @@ X Postponed
 	- Possible web page configuration or grabbing settings from a central location.
 	
 	Thermostat:
-	 ! Build out functionality.
-	 ! Add fan start and stop delay.
-	 - Add support for 3.5" Nextion Touch Display
+	! Added mainPowerPin, need 4ch relay board and dht11.
+	- Build out functionality.
+	- Add fan start and stop delay.
+	- Add support for 3.5" Nextion Touch Display

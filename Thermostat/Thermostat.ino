@@ -59,10 +59,10 @@ unsigned long prevFanDelayMillis = 0;
 unsigned long currentFanDelayMillis = 0;
 unsigned long lastSetAccessoryState = 0;
 
-const long interval = 2000;
+const long interval = 5000;
 unsigned long lasttemphumipublish = 0;
-const long temphumipublishtime = 60000;
-const long fanDelayTime = 120000;
+const long temphumipublishtime = 30000;
+const long fanDelayTime = 30000;
 
 void setup() {
     Serial.begin(74880);
@@ -73,15 +73,16 @@ void setup() {
     pinMode(heatCoolPowerPin, OUTPUT);
     pinMode(hotCoolPin, OUTPUT);
     pinMode(fanPin, OUTPUT);
-    digitalWrite(mainPowerPin, HIGH);
-    digitalWrite(heatCoolPowerPin, LOW); //Provides power to hot/cool
-    digitalWrite(hotCoolPin, LOW); //Low = Hot, High = Cool. Use NO NC on relay. Didn't want it to be possible for hot and cool to be on at the same time with possible freeze/crash.
-    digitalWrite(fanPin, LOW); // Gets power directly from 24v so fan can remain on after hot or cool is turned off. Later use with Air Quality Sensor
+    digitalWrite(mainPowerPin, LOW);
+    digitalWrite(heatCoolPowerPin, HIGH); //Provides power to hot/cool
+    digitalWrite(hotCoolPin, HIGH); //Low = Hot, High = Cool. Use NO NC on relay. Didn't want it to be possible for hot and cool to be on at the same time with possible freeze/crash.
+    digitalWrite(fanPin, HIGH); // Gets power directly from 24v so fan can remain on after hot or cool is turned off. Later use with Air Quality Sensor
     currentHeatCoolState = 0;
+    oldHeatCoolState = 0;
     targetHeatCoolState = 0;
-    coolThresholdTemperature = 75.0;
-    heatThresholdTemperature = 68.0;
-    targetTemperature = 70.0;
+    coolThresholdTemperature = 75;
+    heatThresholdTemperature = 68;
+    targetTemperature = 70;
     wifi_conn();
     ArduinoOTA.setPort(8266);
     ArduinoOTA.setHostname(chipId);
@@ -117,8 +118,106 @@ void wifi_conn(){
 
 void loop(){
     ArduinoOTA.handle();
-    gettemperature();
-    setHeatCoolState();
+    unsigned long currentMillis = millis();
+  if(currentMillis - previousMillis >= interval) { //Read Temp
+    previousMillis = currentMillis;
+    float h = dht.readHumidity();
+    // Read temperature as Celsius (the default)
+    float t = dht.readTemperature();
+    // Read temperature as Fahrenheit (isFahrenheit = true)
+    float f = dht.readTemperature(true);
+    // Check if any reads failed and exit early (to try again).
+    if (isnan(h) || isnan(t) || isnan(f)) {
+      Serial.println("Failed to read from DHT sensor!");
+      celsiusTemp = 0;
+      farenheitTemp = 0;
+      humidityTemp = 0;
+      }
+      else{
+        celsiusTemp = dht.computeHeatIndex(t, h, false);
+        farenheitTemp = dht.computeHeatIndex(f, h);
+        humidityTemp = h;
+        Serial.print("Humidity: ");
+        Serial.print(h);
+        Serial.println();
+        Serial.print("Temperature: ");
+        Serial.print(t);
+        Serial.print(" *C ");
+        Serial.print(f);
+        Serial.print(" *F");
+        Serial.println();
+      }
+  }
+  
+    if(targetHeatCoolState = 0){ //Off
+    digitalWrite(heatCoolPowerPin, HIGH);
+    digitalWrite(hotCoolPin, HIGH);
+    digitalWrite(fanPin, HIGH);
+    currentHeatCoolState = 0;
+    oldTargetHeatCoolState = 0;
+    Serial.println("Set Current Heat Cool State 0");
+    }
+    else if(targetHeatCoolState = 1){ //Heat
+      currentHeatCoolState = 1;
+      if(celsiusTemp < targetTemperature){ //On
+      digitalWrite(hotCoolPin, LOW);
+      digitalWrite(heatCoolPowerPin, HIGH);
+      }
+      else if(celsiusTemp >= targetTemperature){ //Off
+      digitalWrite(heatCoolPowerPin, LOW);
+      digitalWrite(hotCoolPin, LOW);
+      }
+      oldTargetHeatCoolState = 1;
+  Serial.println("Set Current Heat Cool State 1");
+    }
+    else if(targetHeatCoolState = 2){ //Cool
+    currentHeatCoolState = 2;
+    if(celsiusTemp > targetTemperature){ //On
+      digitalWrite(hotCoolPin, HIGH);
+      digitalWrite(heatCoolPowerPin, HIGH);
+    }
+    else if(celsiusTemp <= targetTemperature){ //Off
+      digitalWrite(heatCoolPowerPin, LOW);
+      digitalWrite(hotCoolPin, HIGH);
+    }
+    oldTargetHeatCoolState = 2;
+  Serial.println("Set Current Heat Cool State 2");
+  }
+  else if(targetHeatCoolState = 3){ //Auto
+    if(celsiusTemp < heatThresholdTemperature){ //Heat On
+      currentHeatCoolState = 1;
+      digitalWrite(hotCoolPin, LOW);
+      digitalWrite(heatCoolPowerPin, HIGH);
+    }
+    else if(celsiusTemp >= heatThresholdTemperature){ //Heat Off
+      currentHeatCoolState = 0;
+      digitalWrite(heatCoolPowerPin, LOW);
+      digitalWrite(hotCoolPin, LOW);
+    }
+    else if(celsiusTemp > coolThresholdTemperature){ //Cool On
+      currentHeatCoolState = 2;
+      digitalWrite(hotCoolPin, HIGH);
+      digitalWrite(heatCoolPowerPin, HIGH);
+    }
+    else if(celsiusTemp <= coolThresholdTemperature){ //Cool Off
+      currentHeatCoolState = 0;
+      digitalWrite(heatCoolPowerPin, LOW);
+      digitalWrite(hotCoolPin, HIGH);
+    }
+    oldTargetHeatCoolState = 3;
+  Serial.println("Set Current Heat Cool State 3");
+  }
+    currentFanDelayMillis = millis();
+  if(currentFanDelayMillis - lastSetAccessoryState >= fanDelayTime && timerState == 1){
+    if(currentHeatCoolState == 1 || currentHeatCoolState == 2){
+      digitalWrite(fanPin, LOW);
+    }
+    else if(currentHeatCoolState == 0){
+      digitalWrite(fanPin, HIGH);
+    }
+    timerState = 0;
+    Serial.println("Fan Delay");
+  }
     if (WiFi.status() == WL_CONNECTED) {
     if (!client.connected()) {
       if (client.connect(MQTT::Connect(chipId)
@@ -138,6 +237,7 @@ void loop(){
         previousTempMillis = currentTempMillis;
         publishtemperature();
       }
+      publishHeatCoolState();
       client.loop();
   } else {
     wifi_conn();
@@ -153,7 +253,7 @@ void addAccessory(){
     addThermostatJson["CurrentHeatingCoolingState"] = currentHeatCoolState;
     addThermostatJson["CurrentTemperature"] = celsiusTemp;
     addThermostatJson["TargetTemperature"] = targetTemperature;
-    addThermostatJson["TemperatureDisplayUnits"] = 1;
+    addThermostatJson["TemperatureDisplayUnits"] = 0;
     addThermostatJson["CurrentRelativeHumidity"] = humidityTemp;
     addThermostatJson["CoolingThresholdTemperature"] = coolThresholdTemperature;
     addThermostatJson["HeatingThresholdTemperature"] = heatThresholdTemperature;
@@ -175,26 +275,30 @@ void setAccessory(){
     StaticJsonBuffer<200> setEnvBuffer;
     JsonObject& setEnvJson = setEnvBuffer.createObject();
     setEnvJson["name"] = chipId;
-    setEnvJson["characteristic"] = accessoryCharacteristic;
     if(accessoryCharacteristic == std::string("TargetTemperature")){
+    setEnvJson["characteristic"] = "TargetTemperature";
       targetTemperature = accessoryTempValue;
       setEnvJson["value"] = accessoryTempValue;
     }
     if(accessoryCharacteristic == std::string("TargetHeatingCoolingState")){
+    setEnvJson["characteristic"] = "TargetHeatingCoolingState";
       targetHeatCoolState = accessoryValue;
       setEnvJson["value"] = accessoryValue;
       lastSetAccessoryState = millis();
       timerState = 1;
     }
     if(accessoryCharacteristic == std::string("TemperatureDisplayUnits")){
+    setEnvJson["characteristic"] = "TemperatureDisplayUnits";
       tempDisplayUnits = accessoryValue;
       setEnvJson["value"] = accessoryValue;
     }
     if(accessoryCharacteristic == std::string("CoolingThresholdTemperature")){
+    setEnvJson["characteristic"] = "CoolingThresholdTemperature";
       coolThresholdTemperature = accessoryTempValue;
       setEnvJson["value"] = accessoryTempValue;
     }
     if(accessoryCharacteristic == std::string("HeatingThresholdTemperature")){
+    setEnvJson["characteristic"] = "HeatingThresholdTemperature";
       heatThresholdTemperature = accessoryTempValue;
       setEnvJson["value"] = accessoryTempValue;
     }
@@ -237,38 +341,10 @@ void getAccessory(){
     client.publish(outtopic,getEnvString);
 }
 
-void gettemperature(){
-  unsigned long currentMillis = millis();
-  if(currentMillis - previousMillis >= interval) { 
-    previousMillis = currentMillis;
-    float h = dht.readHumidity();
-    // Read temperature as Celsius (the default)
-    float t = dht.readTemperature();
-    // Read temperature as Fahrenheit (isFahrenheit = true)
-    float f = dht.readTemperature(true);
-    // Check if any reads failed and exit early (to try again).
-    if (isnan(h) || isnan(t) || isnan(f)) {
-      Serial.println("Failed to read from DHT sensor!");
-      }
-      else{
-        celsiusTemp = dht.computeHeatIndex(t, h, false);
-        farenheitTemp = dht.computeHeatIndex(f, h);
-        humidityTemp = h;
-        Serial.print("Humidity: ");
-        Serial.print(h);
-        Serial.print(" %\t Temperature: ");
-        Serial.print(t);
-        Serial.print(" *C ");
-        Serial.print(f);
-        Serial.print(" *F");
-      }
-  }
-}
-
 void publishtemperature(){
     StaticJsonBuffer<200> getTempBuffer;
     JsonObject& getTempJson = getTempBuffer.createObject();
-    getTempJson["name"] = accessoryName;
+    getTempJson["name"] = chipId;
     getTempJson["characteristic"] = "CurrentTemperature";
     getTempJson["value"] = celsiusTemp;
     String getTempString;
@@ -277,73 +353,13 @@ void publishtemperature(){
 
     StaticJsonBuffer<200> getHumiBuffer;
     JsonObject& getHumiJson = getHumiBuffer.createObject();
-    getHumiJson["name"] = accessoryName;
+    getHumiJson["name"] = chipId;
     getHumiJson["characteristic"] = "CurrentRelativeHumidity";
     getHumiJson["value"] = humidityTemp;
     String getHumiString;
     getHumiJson.printTo(getHumiString);
     client.publish(outtopic,getHumiString);
-    Serial.println("Publish");
-}
-
-void setHeatCoolState(){
-  if(targetHeatCoolState != oldTargetHeatCoolState){
-  if(targetHeatCoolState = 0){ //Off
-    digitalWrite(heatCoolPowerPin, LOW);
-    digitalWrite(hotCoolPin, LOW);
-    digitalWrite(fanPin, LOW);
-    currentHeatCoolState = 0;
-    oldTargetHeatCoolState = 0;
-  }
-  if(targetHeatCoolState = 1){ //Heat
-    currentHeatCoolState = 1;
-    if(celsiusTemp < targetTemperature){ //On
-      digitalWrite(hotCoolPin, LOW);
-      digitalWrite(heatCoolPowerPin, HIGH);
-    }
-    if(celsiusTemp >= targetTemperature){ //Off
-      digitalWrite(heatCoolPowerPin, LOW);
-      digitalWrite(hotCoolPin, LOW);
-    }
-    oldTargetHeatCoolState = 1;
-  }
-  if(targetHeatCoolState = 2){ //Cool
-    currentHeatCoolState = 2;
-    if(celsiusTemp > targetTemperature){ //On
-      digitalWrite(hotCoolPin, HIGH);
-      digitalWrite(heatCoolPowerPin, HIGH);
-    }
-    if(celsiusTemp <= targetTemperature){ //Off
-      digitalWrite(heatCoolPowerPin, LOW);
-      digitalWrite(hotCoolPin, HIGH);
-    }
-    oldTargetHeatCoolState = 2;
-  }
-  if(targetHeatCoolState = 3){ //Auto
-    if(celsiusTemp < heatThresholdTemperature){ //Heat On
-      currentHeatCoolState = 1;
-      digitalWrite(hotCoolPin, LOW);
-      digitalWrite(heatCoolPowerPin, HIGH);
-    }
-    if(celsiusTemp >= heatThresholdTemperature){ //Heat Off
-      currentHeatCoolState = 0;
-      digitalWrite(heatCoolPowerPin, LOW);
-      digitalWrite(hotCoolPin, LOW);
-    }
-    if(celsiusTemp > coolThresholdTemperature){ //Cool On
-      currentHeatCoolState = 2;
-      digitalWrite(hotCoolPin, HIGH);
-      digitalWrite(heatCoolPowerPin, HIGH);
-    }
-    if(celsiusTemp <= coolThresholdTemperature){ //Cool Off
-      currentHeatCoolState = 0;
-      digitalWrite(heatCoolPowerPin, LOW);
-      digitalWrite(hotCoolPin, HIGH);
-    }
-    oldTargetHeatCoolState = 0;
-  }
- Serial.println("Set Heat Cool State");
- }
+    Serial.println("Publish Temperature");
 }
 
 void publishHeatCoolState(){
@@ -367,23 +383,8 @@ void publishHeatCoolState(){
     String pubHeatCoolString;
     pubHeatCoolJson.printTo(pubHeatCoolString);
     client.publish(outtopic,pubHeatCoolString);
-  }
   Serial.println("Publish Heat Cool State");
-}
-
-void fanDelay(){
-  currentFanDelayMillis = millis();
-  if(currentFanDelayMillis - lastSetAccessoryState >= fanDelayTime && timerState == 1){
-    if(fanPin == HIGH){
-      digitalWrite(fanPin, LOW);
-    }
-    else if(fanPin == LOW){
-      digitalWrite(fanPin, HIGH);
-    }
-    timerState = 0;
-    Serial.println("Fan Delay");
   }
-  Serial.println("Fan Loop");
 }
 
 void callback(const MQTT::Publish& pub){
@@ -401,7 +402,7 @@ void callback(const MQTT::Publish& pub){
       if(accessoryCharacteristic == std::string("TargetHeatingCoolingState") || accessoryCharacteristic == std::string("TemperatureDisplayUnits")){
       accessoryValue = mqttAccessory["value"];
       }
-      if(accessoryCharacteristic == std::string("TargetTemperature") || accessoryCharacteristic == std::string("CoolingThresholdTemperature") || accessoryCharacteristic == std::string("HeatingThresholdTemperature")){
+      else if(accessoryCharacteristic == std::string("TargetTemperature") || accessoryCharacteristic == std::string("CoolingThresholdTemperature") || accessoryCharacteristic == std::string("HeatingThresholdTemperature")){
         accessoryTempValue = mqttAccessory["value"];
       }
       setAccessory();
@@ -416,3 +417,4 @@ void callback(const MQTT::Publish& pub){
       }
   }
 }
+
