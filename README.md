@@ -22,6 +22,8 @@ ToDo:
 
 X Postponed
 
+# Comment
+
 	ALL:
 	- Better commenting in sketches.
 	- Add last state to eeprom so states survive restart - configurable to on or off.
@@ -35,9 +37,10 @@ X Postponed
 	- Have fan-type and service-type separate so you can change it to fit your fan type easily.
 
 	Switch:
+	- Update switch sketch to comply with homebridge-* updates.
 	- Separate get and post functions.
-	X Add ability for deadbolt.\(Just going to make separate device.)
-	X Add ability for doorbell./(Just going to make separate device.)
+	X Add ability for deadbolt.
+	X Add ability for doorbell.
 	
 	Thermostat:
 	! Added mainPowerPin, need 4ch relay board and dht11/22.
