@@ -11,15 +11,15 @@
 #define topOutlet 16
 #define bottomOutlet 14
 
-const char* ssid = "SSID";
-const char* password = "PASSWORD";
+const char* ssid = "HomeBridge202";
+const char* password = "HomeBridgePassPhrase";
 uint chipId_int;
 uint16_t i;
-char serviceType[32] = "Outlet";
-char chipId[64];
-char chipIdA[32];
-char chipIdB[32];
-char pubTopic[32];
+char serviceType[256] = "Outlet";
+char chipId[256];
+char chipIdA[256];
+char chipIdB[256];
+char pubTopic[256];
 char pubMessage[256];
 
 const char* mqttpass = "";
@@ -29,9 +29,12 @@ const char* gettopic = "homebridge/from/get";
 const char* addtopic = "homebridge/to/add";
 const char* removetopic = "homebridge/to/remove";
 const char* mainttopic = "homebridge/from/connected";
+const char* servicetopic = "homebridge/to/add/service";
+const char* reachabilitytopic = "homebridge/to/set/reachability";
 const char* maintmessage = "";
 const char* accessoryName;
 const char* accessoryCharacteristic;
+const char* accessoryServiceName;
 const char* accessoryValue;
 const char* accessoryValueString;
 bool currentOutletState;
@@ -41,8 +44,9 @@ bool bottomOutletState;
 String chipId_string;
 String chipId_stringA;
 String chipId_stringB;
+String jsonReachabilityString;
 
-IPAddress server(10, 1, 1, 1);
+IPAddress server(10, 1, 0, 1);
 WiFiClient wclient;
 PubSubClient client(wclient, server);
 
@@ -51,15 +55,20 @@ void setup() {
   chipId_string = String(serviceType)+String(ESP.getChipId());
   chipId_stringA = String(serviceType)+"A"+String(ESP.getChipId());
   chipId_stringB = String(serviceType)+"B"+String(ESP.getChipId());
-  chipId_string.toCharArray(chipId,64);
-  chipId_stringA.toCharArray(chipIdA,32);
-  chipId_stringB.toCharArray(chipIdB,32);
+  chipId_string.toCharArray(chipId,256);
+  chipId_stringA.toCharArray(chipIdA,256);
+  chipId_stringB.toCharArray(chipIdB,256);
   pinMode(topOutlet, OUTPUT);
   pinMode(bottomOutlet, OUTPUT);
   digitalWrite(topOutlet, HIGH);
   digitalWrite(bottomOutlet, HIGH);
   topOutletState = false;
   bottomOutletState = false;
+  StaticJsonBuffer<200> jsonReachabilityBuffer;
+  JsonObject& jsonReachability = jsonReachabilityBuffer.createObject();
+  jsonReachability["name"] = chipId;
+  jsonReachability["reachable"] = false;
+  jsonReachability.printTo(jsonReachabilityString);
   wifi_conn();
   ArduinoOTA.setPort(8266);
   ArduinoOTA.setHostname(chipId);
@@ -106,12 +115,14 @@ void loop(){
     if (WiFi.status() == WL_CONNECTED) {
     if (!client.connected()) {
       if (client.connect(MQTT::Connect(chipId)
+       .set_will(reachabilitytopic, jsonReachabilityString)
        .set_auth(chipId, mqttpass))) {
   client.set_callback(callback);
   client.subscribe(intopic);
   client.subscribe(gettopic);
   client.subscribe(mainttopic);
   addAccessory();
+  setReachability();
       } else {
         Serial.println("Could not connect to MQTT server");
         delay(5000);
@@ -127,28 +138,42 @@ void loop(){
 
 void addAccessory(){
   StaticJsonBuffer<200> jsonOutletBufferA;
-  StaticJsonBuffer<200> jsonOutletBufferB;
   JsonObject& addOutletAccessoryJsonA = jsonOutletBufferA.createObject();
-  JsonObject& addOutletAccessoryJsonB = jsonOutletBufferB.createObject();
-  addOutletAccessoryJsonA["name"] = chipIdA;
-  addOutletAccessoryJsonB["name"] = chipIdB;
+  addOutletAccessoryJsonA["name"] = chipId;
   addOutletAccessoryJsonA["service"] = serviceType;
-  addOutletAccessoryJsonB["service"] = serviceType;
-  addOutletAccessoryJsonA["OutletInUse"] = true;
-  addOutletAccessoryJsonB["OutletInUse"] = true;
+  addOutletAccessoryJsonA["reachable"] = true;
   String addOutletAccessoryJsonAString;
-  String addOutletAccessoryJsonBString;
   addOutletAccessoryJsonA.printTo(addOutletAccessoryJsonAString);
-  addOutletAccessoryJsonB.printTo(addOutletAccessoryJsonBString);
   Serial.println(addOutletAccessoryJsonAString);
-  Serial.println(addOutletAccessoryJsonBString);
   client.publish(addtopic,addOutletAccessoryJsonAString);
-  client.publish(addtopic,addOutletAccessoryJsonBString);
-  Serial.println("Outlet Added");
+  Serial.println("Outlet 'A' Added");
+
+  //Add Service
+  StaticJsonBuffer<200> jsonOutletBufferB;
+  JsonObject& addOutletAccessoryJsonB = jsonOutletBufferB.createObject();
+  addOutletAccessoryJsonB["name"] = chipId;
+  addOutletAccessoryJsonB["service_name"] = chipIdB;
+  addOutletAccessoryJsonB["service"] = serviceType;
+  String addOutletAccessoryJsonBString;
+  addOutletAccessoryJsonB.printTo(addOutletAccessoryJsonBString);
+  Serial.println(addOutletAccessoryJsonBString);
+  client.publish(servicetopic,addOutletAccessoryJsonBString);
+  Serial.println("Outlet 'B' Added");
 }
 
 void maintAccessory(){
   Serial.println("Maintenance");
+}
+
+void setReachability(){
+  StaticJsonBuffer<200> jsonSetReachability;
+  JsonObject& setReachabilityJson = jsonSetReachability.createObject();
+  setReachabilityJson["name"] = chipId;
+  setReachabilityJson["reachable"] = true;
+  String setReachabilityJsonString;
+  setReachabilityJson.printTo(setReachabilityJsonString);
+  Serial.println(setReachabilityJsonString);
+  client.publish(reachabilitytopic,setReachabilityJsonString);
 }
 
 void removeAccessory(){
@@ -157,16 +182,15 @@ void removeAccessory(){
 
 void setAccessory(){
     Serial.println();
-    Serial.println(currentOutletState);
     Serial.print("Set Outlet ");
     if(currentOutletState == true){
-      if(accessoryName == std::string(chipIdA))
+      if(accessoryServiceName == std::string(chipId))
       {
         Serial.println("A ON");
         topOutletState = true;
         digitalWrite(topOutlet, LOW);
       }
-      else if(accessoryName == std::string(chipIdB))
+      else if(accessoryServiceName == std::string(chipIdB))
       {
         Serial.println("B ON");
         bottomOutletState = true;
@@ -175,13 +199,13 @@ void setAccessory(){
     }
     else if(currentOutletState == false)
     {
-      if(accessoryName == std::string(chipIdA))
+      if(accessoryServiceName == std::string(chipId))
       {
         Serial.println("A OFF");
         topOutletState = false;
         digitalWrite(topOutlet, HIGH);
       }
-      else if(accessoryName == std::string(chipIdB))
+      else if(accessoryServiceName == std::string(chipIdB))
       {
         Serial.println("B OFF");
         bottomOutletState = false;
@@ -194,17 +218,22 @@ void getAccessory(){
   Serial.print("Get Outlet");
   StaticJsonBuffer<200> getOutletBuffer;
   JsonObject& getOutletJson = getOutletBuffer.createObject();
-  if(accessoryName == std::string(chipIdA))
+  if(accessoryServiceName == std::string(chipId))
   {
-    getOutletJson["name"] = chipIdA;
+    getOutletJson["name"] = chipId;
     getOutletJson["characteristic"] = "On";
     getOutletJson["value"] = topOutletState;
+    Serial.print(" A: ");
+    Serial.println(topOutletState);
   }
-  else if(accessoryName == std::string(chipIdB))
+  else if(accessoryServiceName == std::string(chipIdB))
   {
-    getOutletJson["name"] = chipIdB;
+    getOutletJson["name"] = chipId;
+    getOutletJson["service_name"] = chipIdB;
     getOutletJson["characteristic"] = "On";
     getOutletJson["value"] = bottomOutletState;
+    Serial.print(" B: ");
+    Serial.println(bottomOutletState);
   }
   String getOutletString;
   getOutletJson.printTo(getOutletString);
@@ -212,26 +241,26 @@ void getAccessory(){
 }
 
 void callback(const MQTT::Publish& pub){
-  pub.topic().toCharArray(pubTopic,50);
-  StaticJsonBuffer<200> jsoncallbackBuffer;
+  pub.topic().toCharArray(pubTopic,512);
+  StaticJsonBuffer<512> jsoncallbackBuffer;
   JsonObject& mqttAccessory = jsoncallbackBuffer.parseObject(pub.payload_string());
   accessoryName = mqttAccessory["name"];
+  accessoryServiceName = mqttAccessory["service_name"];
   if(mainttopic == std::string(pubTopic)){
     Serial.print("Maintenance");
     maintAccessory();
   }
   else if(intopic == std::string(pubTopic)){
-    if(serviceType == std::string("Outlet") && accessoryName == std::string(chipIdA)){
-      Serial.print("Top Outlet");
+    if(accessoryName == std::string(chipId) && (accessoryServiceName == std::string(chipId) || accessoryServiceName == std::string(chipIdB))){
       accessoryCharacteristic = mqttAccessory["characteristic"];
       currentOutletState = mqttAccessory["value"];
       setAccessory();
     }
-    else if(serviceType == std::string("Outlet") && accessoryName == std::string(chipIdB)){
-      Serial.print("Bottom Outlet");
+  }
+  else if(gettopic == std::string(pubTopic)){
+    if(accessoryName == std::string(chipId) && (accessoryServiceName == std::string(chipId) || accessoryServiceName == std::string(chipIdB))){
       accessoryCharacteristic = mqttAccessory["characteristic"];
-      currentOutletState = mqttAccessory["value"];
-      setAccessory();
+      getAccessory();
     }
   }
   else if(accessoryName != std::string(chipId)){

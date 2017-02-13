@@ -61,8 +61,8 @@ unsigned long lastSetAccessoryState = 0;
 
 const long interval = 5000;
 unsigned long lasttemphumipublish = 0;
-const long temphumipublishtime = 30000;
-const long fanDelayTime = 30000;
+const long temphumipublishtime = 15000;
+const long fanDelayTime = 15000;
 
 void setup() {
     Serial.begin(74880);
@@ -80,9 +80,9 @@ void setup() {
     currentHeatCoolState = 0;
     oldHeatCoolState = 0;
     targetHeatCoolState = 0;
-    coolThresholdTemperature = 75;
-    heatThresholdTemperature = 68;
-    targetTemperature = 70;
+    coolThresholdTemperature = 32;
+    heatThresholdTemperature = 0;
+    targetTemperature = 32;
     wifi_conn();
     ArduinoOTA.setPort(8266);
     ArduinoOTA.setHostname(chipId);
@@ -142,92 +142,34 @@ void loop(){
         Serial.println();
         Serial.print("Temperature: ");
         Serial.print(t);
-        Serial.print(" *C ");
+        Serial.print(" *C   ");
         Serial.print(f);
         Serial.print(" *F");
         Serial.println();
       }
   }
-  
-    if(targetHeatCoolState = 0){ //Off
-    digitalWrite(heatCoolPowerPin, HIGH);
-    digitalWrite(hotCoolPin, HIGH);
-    digitalWrite(fanPin, HIGH);
-    currentHeatCoolState = 0;
-    oldTargetHeatCoolState = 0;
-    Serial.println("Set Current Heat Cool State 0");
-    }
-    else if(targetHeatCoolState = 1){ //Heat
-      currentHeatCoolState = 1;
-      if(celsiusTemp < targetTemperature){ //On
-      digitalWrite(hotCoolPin, LOW);
-      digitalWrite(heatCoolPowerPin, HIGH);
-      }
-      else if(celsiusTemp >= targetTemperature){ //Off
-      digitalWrite(heatCoolPowerPin, LOW);
-      digitalWrite(hotCoolPin, LOW);
-      }
-      oldTargetHeatCoolState = 1;
-  Serial.println("Set Current Heat Cool State 1");
-    }
-    else if(targetHeatCoolState = 2){ //Cool
-    currentHeatCoolState = 2;
-    if(celsiusTemp > targetTemperature){ //On
-      digitalWrite(hotCoolPin, HIGH);
-      digitalWrite(heatCoolPowerPin, HIGH);
-    }
-    else if(celsiusTemp <= targetTemperature){ //Off
-      digitalWrite(heatCoolPowerPin, LOW);
-      digitalWrite(hotCoolPin, HIGH);
-    }
-    oldTargetHeatCoolState = 2;
-  Serial.println("Set Current Heat Cool State 2");
-  }
-  else if(targetHeatCoolState = 3){ //Auto
-    if(celsiusTemp < heatThresholdTemperature){ //Heat On
-      currentHeatCoolState = 1;
-      digitalWrite(hotCoolPin, LOW);
-      digitalWrite(heatCoolPowerPin, HIGH);
-    }
-    else if(celsiusTemp >= heatThresholdTemperature){ //Heat Off
-      currentHeatCoolState = 0;
-      digitalWrite(heatCoolPowerPin, LOW);
-      digitalWrite(hotCoolPin, LOW);
-    }
-    else if(celsiusTemp > coolThresholdTemperature){ //Cool On
-      currentHeatCoolState = 2;
-      digitalWrite(hotCoolPin, HIGH);
-      digitalWrite(heatCoolPowerPin, HIGH);
-    }
-    else if(celsiusTemp <= coolThresholdTemperature){ //Cool Off
-      currentHeatCoolState = 0;
-      digitalWrite(heatCoolPowerPin, LOW);
-      digitalWrite(hotCoolPin, HIGH);
-    }
-    oldTargetHeatCoolState = 3;
-  Serial.println("Set Current Heat Cool State 3");
-  }
-    currentFanDelayMillis = millis();
-  if(currentFanDelayMillis - lastSetAccessoryState >= fanDelayTime && timerState == 1){
+  currentFanDelayMillis = millis();
+  if(((currentFanDelayMillis - lastSetAccessoryState) >= fanDelayTime) && (timerState == 1)){
     if(currentHeatCoolState == 1 || currentHeatCoolState == 2){
       digitalWrite(fanPin, LOW);
-    }
-    else if(currentHeatCoolState == 0){
+      }
+    if(currentHeatCoolState == 0){
       digitalWrite(fanPin, HIGH);
     }
     timerState = 0;
     Serial.println("Fan Delay");
   }
-    if (WiFi.status() == WL_CONNECTED) {
+  if (WiFi.status() == WL_CONNECTED) {
     if (!client.connected()) {
       if (client.connect(MQTT::Connect(chipId)
        .set_auth(chipId, mqttpass))) {
-  client.set_callback(callback);
-  client.subscribe(intopic);
-  client.subscribe(gettopic);
-  client.subscribe(mainttopic);
-  addAccessory();
-      } else {
+        client.set_callback(callback);
+        client.subscribe(intopic);
+        client.subscribe(gettopic);
+        client.subscribe(mainttopic);
+        addAccessory();
+        } 
+        else {
         delay(5000);
       }
     }
@@ -237,7 +179,6 @@ void loop(){
         previousTempMillis = currentTempMillis;
         publishtemperature();
       }
-      publishHeatCoolState();
       client.loop();
   } else {
     wifi_conn();
@@ -280,24 +221,25 @@ void setAccessory(){
       targetTemperature = accessoryTempValue;
       setEnvJson["value"] = accessoryTempValue;
     }
-    if(accessoryCharacteristic == std::string("TargetHeatingCoolingState")){
+    else if(accessoryCharacteristic == std::string("TargetHeatingCoolingState")){
     setEnvJson["characteristic"] = "TargetHeatingCoolingState";
       targetHeatCoolState = accessoryValue;
       setEnvJson["value"] = accessoryValue;
       lastSetAccessoryState = millis();
       timerState = 1;
+      setCurrentHeatCoolState();
     }
-    if(accessoryCharacteristic == std::string("TemperatureDisplayUnits")){
+    else if(accessoryCharacteristic == std::string("TemperatureDisplayUnits")){
     setEnvJson["characteristic"] = "TemperatureDisplayUnits";
       tempDisplayUnits = accessoryValue;
       setEnvJson["value"] = accessoryValue;
     }
-    if(accessoryCharacteristic == std::string("CoolingThresholdTemperature")){
+    else if(accessoryCharacteristic == std::string("CoolingThresholdTemperature")){
     setEnvJson["characteristic"] = "CoolingThresholdTemperature";
       coolThresholdTemperature = accessoryTempValue;
       setEnvJson["value"] = accessoryTempValue;
     }
-    if(accessoryCharacteristic == std::string("HeatingThresholdTemperature")){
+    else if(accessoryCharacteristic == std::string("HeatingThresholdTemperature")){
     setEnvJson["characteristic"] = "HeatingThresholdTemperature";
       heatThresholdTemperature = accessoryTempValue;
       setEnvJson["value"] = accessoryTempValue;
@@ -315,25 +257,25 @@ void getAccessory(){
     if(accessoryCharacteristic == std::string("CurrentTemperature")){
     getEnvJson["value"] = celsiusTemp;
     }
-    if(accessoryCharacteristic == std::string("CurrentRelativeHumidity")){
+    else if(accessoryCharacteristic == std::string("CurrentRelativeHumidity")){
     getEnvJson["value"] = humidityTemp;
     }
-    if(accessoryCharacteristic == std::string("CurrentHeatingCoolingState")){
+    else if(accessoryCharacteristic == std::string("CurrentHeatingCoolingState")){
       getEnvJson["value"] = currentHeatCoolState;
     }
-    if(accessoryCharacteristic == std::string("TargetTemperature")){
+    else if(accessoryCharacteristic == std::string("TargetTemperature")){
       getEnvJson["value"] = targetTemperature;
     }
-    if(accessoryCharacteristic == std::string("TargetHeatingCoolingState")){
+    else if(accessoryCharacteristic == std::string("TargetHeatingCoolingState")){
       getEnvJson["value"] = targetHeatCoolState;
     }
-    if(accessoryCharacteristic == std::string("TemperatureDisplayUnits")){
+    else if(accessoryCharacteristic == std::string("TemperatureDisplayUnits")){
       getEnvJson["value"] = tempDisplayUnits;
     }
-    if(accessoryCharacteristic == std::string("CoolingThresholdTemperature")){
+    else if(accessoryCharacteristic == std::string("CoolingThresholdTemperature")){
       getEnvJson["value"] = coolThresholdTemperature;
     }
-    if(accessoryCharacteristic == std::string("HeatingThresholdTemperature")){
+    else if(accessoryCharacteristic == std::string("HeatingThresholdTemperature")){
       getEnvJson["value"] = heatThresholdTemperature;
     }
     String getEnvString;
@@ -363,7 +305,6 @@ void publishtemperature(){
 }
 
 void publishHeatCoolState(){
-  if(currentHeatCoolState != oldHeatCoolState){
     StaticJsonBuffer<200> pubHeatCoolBuffer;
     JsonObject& pubHeatCoolJson = pubHeatCoolBuffer.createObject();
     pubHeatCoolJson["name"] = chipId;
@@ -372,19 +313,72 @@ void publishHeatCoolState(){
       pubHeatCoolJson["value"] = 0;
       oldHeatCoolState = 0;
       }
-    if(currentHeatCoolState = 1){
+    else if(currentHeatCoolState = 1){
       pubHeatCoolJson["value"] = 1;
       oldHeatCoolState = 1;
     }
-    if(currentHeatCoolState = 2){
+    else if(currentHeatCoolState = 2){
       pubHeatCoolJson["value"] = 2;
       oldHeatCoolState = 2;
     }
     String pubHeatCoolString;
     pubHeatCoolJson.printTo(pubHeatCoolString);
     client.publish(outtopic,pubHeatCoolString);
-  Serial.println("Publish Heat Cool State");
+    Serial.print("Publish Heat Cool State ");
+    Serial.println(currentHeatCoolState);
+}
+
+void setCurrentHeatCoolState(){
+  if(targetHeatCoolState = 0){ //Off
+    digitalWrite(heatCoolPowerPin, HIGH);
+    digitalWrite(hotCoolPin, HIGH);
+    digitalWrite(fanPin, HIGH);
+    currentHeatCoolState = 0;
+    Serial.println("Set Current Heat Cool State 0");
+    }
+  else if((targetHeatCoolState = 1) && (celsiusTemp < targetTemperature)){ //Heat On
+    currentHeatCoolState = 1;
+    digitalWrite(hotCoolPin, LOW);
+    digitalWrite(heatCoolPowerPin, HIGH);
+    }
+  else if((targetHeatCoolState = 1) && (celsiusTemp >= targetTemperature)){ //Heat Off
+    currentHeatCoolState = 1;
+    digitalWrite(heatCoolPowerPin, LOW);
+    digitalWrite(hotCoolPin, LOW);
+    }
+  else if((targetHeatCoolState = 2) && (celsiusTemp > targetTemperature)){ //Cool On
+    currentHeatCoolState = 2;
+    digitalWrite(hotCoolPin, HIGH);
+    digitalWrite(heatCoolPowerPin, HIGH);
+    }
+  else if((targetHeatCoolState = 2) && (celsiusTemp <= targetTemperature)){ //Cool Off
+    currentHeatCoolState = 2;
+    digitalWrite(heatCoolPowerPin, LOW);
+    digitalWrite(hotCoolPin, HIGH);
+    }
+  else if(targetHeatCoolState = 3){ //Auto
+    if(celsiusTemp < heatThresholdTemperature){ //Heat On
+      currentHeatCoolState = 1;
+      digitalWrite(hotCoolPin, LOW);
+      digitalWrite(heatCoolPowerPin, HIGH);
+    }
+    else if(celsiusTemp >= heatThresholdTemperature){ //Heat Off
+      currentHeatCoolState = 0;
+      digitalWrite(heatCoolPowerPin, LOW);
+      digitalWrite(hotCoolPin, LOW);
+    }
+    else if(celsiusTemp > coolThresholdTemperature){ //Cool On
+      currentHeatCoolState = 2;
+      digitalWrite(hotCoolPin, HIGH);
+      digitalWrite(heatCoolPowerPin, HIGH);
+    }
+    else if(celsiusTemp <= coolThresholdTemperature){ //Cool Off
+      currentHeatCoolState = 0;
+      digitalWrite(heatCoolPowerPin, LOW);
+      digitalWrite(hotCoolPin, HIGH);
+    }
   }
+  publishHeatCoolState();
 }
 
 void callback(const MQTT::Publish& pub){
@@ -406,14 +400,17 @@ void callback(const MQTT::Publish& pub){
         accessoryTempValue = mqttAccessory["value"];
       }
       setAccessory();
-      Serial.println("Set Callback");
+      Serial.println("Set ");
+      Serial.print(accessoryCharacteristic);
+      Serial.print(" to ");
     }
   }
     else if (gettopic == std::string(pubTopic)){
       if (accessoryName == std::string(chipId)){
         accessoryCharacteristic = mqttAccessory["characteristic"];
         getAccessory();
-        Serial.println("Get Callback");
+        Serial.println("Get ");
+        Serial.print(accessoryCharacteristic);
       }
   }
 }

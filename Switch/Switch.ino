@@ -14,23 +14,23 @@
 #define DHTTYPE DHT11
 #define DHTPIN  16
 
-const char* ssid = "SSID";
-const char* password = "Password";
+const char* ssid = "HomeBridge202";
+const char* password = "HomeBridgePassPhrase";
 uint chipId_int;
 uint16_t i;
-char serviceType[64] = "Switch";
+char serviceType[128] = "Switch";
 int numSwitches = 1; //1-4
-bool contactSensorPresent = true;
+bool contactSensorPresent = false;
 bool tempHumiSensorPresent = false;
-char chipId[64];
-char chipIdA[64];
-char chipIdB[64];
-char chipIdC[64];
-char chipIdD[64];
-char chipIdE[64];
-char chipIdF[64];
-char chipIdG[64];
-char pubTopic[64];
+char chipId[128];
+char chipIdA[128];
+char chipIdB[128];
+char chipIdC[128];
+char chipIdD[128];
+char chipIdE[128];
+char chipIdF[128];
+char chipIdG[128];
+char pubTopic[128];
 char pubMessage[256];
 
 const char* mqttpass = "";
@@ -82,27 +82,27 @@ unsigned long debounceDelay = 60;
 
 Adafruit_MCP23017 mcp;
 
-IPAddress server(10, 1, 1, 1);
+IPAddress server(10, 1, 0, 1);
 WiFiClient wclient;
 PubSubClient client(wclient, server);
-DHT dht(DHTPIN, DHTTYPE, 11);
+DHT dht(DHTPIN, DHTTYPE);
 
-float humi_d, temp_df;
+float celsiusTemp, farenheitTemp, humidityTemp;
 unsigned long previousMillis = 0;
 unsigned long previousTempMillis = 0;
 
 const long interval = 2000;
 unsigned long lasttemphumipublish = 0;
-const long temphumipublishtime = 60000;
+const long temphumipublishtime = 15000;
 
 void setup() {
     Serial.begin(74880);
     String chipId_string;
     chipId_string = serviceType+String(ESP.getChipId());
-    chipId_string.toCharArray(chipId,64);
+    chipId_string.toCharArray(chipId,128);
     if(numSwitches == 1 || numSwitches == 2 || numSwitches == 3 || numSwitches == 4){
     chipId_stringA = "SwitchA"+String(ESP.getChipId());
-    chipId_stringA.toCharArray(chipIdA,64);
+    chipId_stringA.toCharArray(chipIdA,128);
     #define ledAPin 14
     #define switchAPin 13
     #define relayAPin 12
@@ -114,9 +114,10 @@ void setup() {
     digitalSwitchAState = false;
     switchAState = false;
     oldSwitchAState = false;
+    Serial.println("Switch 'A' Ready");
     if(numSwitches == 2 || numSwitches == 3 || numSwitches == 4){
     chipId_stringB = "SwitchB"+String(ESP.getChipId());
-    chipId_stringB.toCharArray(chipIdB,64);
+    chipId_stringB.toCharArray(chipIdB,128);
     mcp.begin();
     #define ledBPin 1
     #define switchBPin 5
@@ -128,7 +129,7 @@ void setup() {
     oldSwitchBState = false;
     if(numSwitches == 3 || numSwitches == 4){
     chipId_stringC = "SwitchC"+String(ESP.getChipId());
-    chipId_stringC.toCharArray(chipIdC,64);
+    chipId_stringC.toCharArray(chipIdC,128);
     #define ledCPin 2
     #define switchCPin 6
     mcp.pinMode(ledCPin, OUTPUT);
@@ -139,7 +140,7 @@ void setup() {
     oldSwitchCState = false;
     if(numSwitches == 4){
     chipId_stringD = "SwitchD"+String(ESP.getChipId());
-    chipId_stringD.toCharArray(chipIdD,64);
+    chipId_stringD.toCharArray(chipIdD,128);
     #define ledDPin 3
     #define switchDPin 7
     mcp.pinMode(ledDPin, OUTPUT);
@@ -154,13 +155,19 @@ void setup() {
     }
     if(contactSensorPresent == true){
       chipId_stringE = "ContactSensor"+String(ESP.getChipId());
-      chipId_stringE.toCharArray(chipIdE,64);
-      #define contactPin 13
+      chipId_stringE.toCharArray(chipIdE,128);
+      #define contactPin 5
       pinMode(contactPin, INPUT);
       oldContactSensorState = digitalRead(contactPin);
+      Serial.println("Contact True");
     }
     if(tempHumiSensorPresent == true){
+      chipId_stringF = "TemperatureSensor"+String(ESP.getChipId());
+      chipId_stringF.toCharArray(chipIdF,128);
+      chipId_stringG = "HumiditySensor"+String(ESP.getChipId());
+      chipId_stringG.toCharArray(chipIdG,128);
       dht.begin();
+      Serial.println("DHT True");
     }
     wifi_conn();
     ArduinoOTA.setPort(8266);
@@ -205,7 +212,7 @@ void wifi_conn(){
 void loop(){
     ArduinoOTA.handle();
     if(numSwitches == 1 || numSwitches == 2 || numSwitches == 3 || numSwitches == 4){
-    currentSwitchAState = mcp.digitalRead(switchAPin);
+    currentSwitchAState = digitalRead(switchAPin);
     if(currentSwitchAState != oldSwitchAState){
         lastDebounceATime = millis();
       }
@@ -341,9 +348,10 @@ void loop(){
     }
     if(tempHumiSensorPresent == true){
       unsigned long currentTempMillis = millis();
+      gettemperature();
       if(currentTempMillis - previousTempMillis >= temphumipublishtime){
         previousTempMillis = currentTempMillis;
-        gettemperature();
+        publishtemperature();
       }
     }
     if (WiFi.status() == WL_CONNECTED) {
@@ -491,11 +499,11 @@ void getAccessory(){
     }else if(accessoryName == std::string(chipIdD)){
       getSwitchJson["value"] = currentSwitchDState;
     }else if(accessoryName == std::string(chipIdE)){
-      getSwitchJson["value"] = currentContactSensorState;
+      getSwitchJson["value"] = contactSensorState;
     }else if(accessoryName == std::string(chipIdF)){
-      getSwitchJson["value"] = temp_df;
+      getSwitchJson["value"] = celsiusTemp;
     }else if(accessoryName == std::string(chipIdG)){
-      getSwitchJson["value"] = humi_d;
+      getSwitchJson["value"] = humidityTemp;
     }
     String getSwitchString;
     getSwitchJson.printTo(getSwitchString);
@@ -506,32 +514,57 @@ void gettemperature() {
   unsigned long currentMillis = millis();
   if(currentMillis - previousMillis >= interval) { 
     previousMillis = currentMillis;
-    humi_d = dht.readHumidity();
-    temp_df = dht.readTemperature(true);
-    
+    float h = dht.readHumidity();
+    // Read temperature as Celsius (the default)
+    float t = dht.readTemperature();
+    // Read temperature as Fahrenheit (isFahrenheit = true)
+    float f = dht.readTemperature(true);
+    // Check if any reads failed and exit early (to try again).
+    if (isnan(h) || isnan(t) || isnan(f)) {
+      Serial.println("Failed to read from DHT sensor!");
+      celsiusTemp = 0;
+      farenheitTemp = 0;
+      humidityTemp = 0;
+      }
+      else{
+        celsiusTemp = dht.computeHeatIndex(t, h, false);
+        farenheitTemp = dht.computeHeatIndex(f, h);
+        humidityTemp = h;
+        Serial.print("Humidity: ");
+        Serial.print(h);
+        Serial.println();
+        Serial.print("Temperature: ");
+        Serial.print(t);
+        Serial.print(" *C");
+        Serial.println();
+      }
+  }
+}
+
+void publishtemperature(){
     StaticJsonBuffer<200> getTempBuffer;
     JsonObject& getTempJson = getTempBuffer.createObject();
-    getTempJson["name"] = accessoryName;
+    getTempJson["name"] = chipIdF;
     getTempJson["characteristic"] = "CurrentTemperature";
-    getTempJson["value"] = temp_df;
+    getTempJson["value"] = celsiusTemp;
     String getTempString;
     getTempJson.printTo(getTempString);
     client.publish(outtopic,getTempString);
 
     StaticJsonBuffer<200> getHumiBuffer;
     JsonObject& getHumiJson = getHumiBuffer.createObject();
-    getHumiJson["name"] = accessoryName;
+    getHumiJson["name"] = chipIdG;
     getHumiJson["characteristic"] = "CurrentRelativeHumidity";
-    getHumiJson["value"] = humi_d;
+    getHumiJson["value"] = humidityTemp;
     String getHumiString;
     getHumiJson.printTo(getHumiString);
     client.publish(outtopic,getHumiString);
-  }
+    Serial.println("Publish Temperature");
 }
 
 void callback(const MQTT::Publish& pub){
-  pub.topic().toCharArray(pubTopic,50);
-  StaticJsonBuffer<200> jsoncallbackBuffer;
+  pub.topic().toCharArray(pubTopic,512);
+  StaticJsonBuffer<512> jsoncallbackBuffer;
   JsonObject& mqttAccessory = jsoncallbackBuffer.parseObject(pub.payload_string());
   accessoryName = mqttAccessory["name"];
   if(mainttopic == std::string(pubTopic)){
