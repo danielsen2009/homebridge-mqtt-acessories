@@ -9,16 +9,24 @@
 
 #include "Arduino.h"
 
-
-class Outlet
-{
+class Outlet{
+  
   public:
-    Outlet(int pin);
-    void getState();
-    void setState();
+  Outlet(int outletPin, char outletName[10]);
+  char outletId[256];
+  char* outletName;
+  bool outletState();
+  void AddOutlet();
+  void SetOutlet();
+  void GetOutlet();
+  
 
   private:
-    int _pin;
+  int _outletPin;
+  String _outletIdString;
+  char _outletId[256];
+  char* _outletName;
+  bool _outletState;
 };
 
 #endif
