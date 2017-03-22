@@ -7,9 +7,11 @@ Homebridge: https://github.com/nfarina/homebridge
 Homebridge-mqtt: https://github.com/cflurin/homebridge-mqtt
 
 ArduinoJson: https://github.com/bblanchon/ArduinoJson
+
+Mosquitto: https://mosquitto.org
 _____________________________________________________
 
-Videos of hardware setup/demo coming soon!
+Videos of hardware setup/demo coming soon! - https://www.youtube.com/channel/UCW5E_jmxJpEyn6CLbLvz5hw
 
 Trying to build a library so you can just set the device type and set variables specific to that type. Any insight would be appreciated!
 _____________________________________________________
