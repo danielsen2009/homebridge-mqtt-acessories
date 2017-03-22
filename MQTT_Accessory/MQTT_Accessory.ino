@@ -92,6 +92,8 @@ void callback(const MQTT::Publish& pub){
   JsonObject& mqttAccessory = jsoncallbackBuffer.parseObject(pub.payload_string());
   accessoryName = mqttAccessory["name"];
   accessoryServiceName = mqttAccessory["service_name"];
+  Serial.println(accessoryName);
+  Serial.println(accessoryServiceName);
   if(mainttopic == std::string(pubTopic)){
     Serial.print("Maintenance");
     //maintAccessory();
