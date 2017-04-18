@@ -22,6 +22,10 @@ char chipIdB[256];
 char pubTopic[256];
 char pubMessage[256];
 
+long currentMillis = 0;
+long previousMillis = 0;
+long interval = 120000;
+
 const char* mqttpass = "";
 const char* intopic = "homebridge/from/set";
 const char* outtopic = "homebridge/to/set";
@@ -31,6 +35,7 @@ const char* removetopic = "homebridge/to/remove";
 const char* mainttopic = "homebridge/from/connected";
 const char* servicetopic = "homebridge/to/add/service";
 const char* reachabilitytopic = "homebridge/to/set/reachability";
+const char* accessoryInformationTopic = "homebridge/to/set/accessoryinformation";
 const char* maintmessage = "";
 const char* accessoryName;
 const char* accessoryCharacteristic;
@@ -130,6 +135,11 @@ void loop(){
     }
 
     if (client.connected())
+    currentMillis = millis();
+    if(currentMillis - previousMillis > interval) {
+      previousMillis = currentMillis;
+      setReachability();
+      }
     client.loop();
     }else{
       wifi_conn();
@@ -137,6 +147,18 @@ void loop(){
 }
 
 void addAccessory(){
+  StaticJsonBuffer<200> jsonAccessoryInformationBuffer;
+  JsonObject& accessoryInformation = jsonAccessoryInformationBuffer.createObject();
+  accessoryInformation["name"] = chipId;
+  accessoryInformation["manufacturer"] ="StaticIp IT";
+  accessoryInformation["model"] ="Dual WiFi Controlled Outlet (1.0)";
+  accessoryInformation["serialnumber"] = ESP.getChipId();
+  String jsonAccessoryInformationString;
+  accessoryInformation.printTo(jsonAccessoryInformationString);
+  Serial.println(jsonAccessoryInformationString);
+  client.publish(accessoryInformationTopic, jsonAccessoryInformationString);
+  Serial.println();
+  
   StaticJsonBuffer<200> jsonOutletBufferA;
   JsonObject& addOutletAccessoryJsonA = jsonOutletBufferA.createObject();
   addOutletAccessoryJsonA["name"] = chipId;
