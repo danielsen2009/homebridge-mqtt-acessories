@@ -65,7 +65,7 @@ void setup() {
   Serial.begin(74880);
   chipId_string = String(serviceType)+String(ESP.getChipId());
   chipId_string.toCharArray(chipId,256);
-  if(serviceType == "Outlet"){
+  if(serviceType == std::string("Outlet")){
     outletB_string = String(serviceType)+"B"+String(ESP.getChipId());
     outletB_string.toCharArray(outletB,256);
     pinMode(topOutlet, OUTPUT);
@@ -74,8 +74,9 @@ void setup() {
     digitalWrite(bottomOutlet, HIGH);
     topOutletState = false;
     bottomOutletState = false;
+    Serial.print("Outlet ");
   }
-  else if(serviceType =="Switch"){
+  else if(serviceType == std::string("Switch")){
     
   }
   
@@ -107,6 +108,7 @@ void setup() {
     else if (error == OTA_END_ERROR) Serial.println("End Failed");
   });
   ArduinoOTA.begin();
+  Serial.println("Setup Complete");
 }
 
 void wifi_conn(){
@@ -157,7 +159,7 @@ void loop(){
 }
 
 void addAccessory(){
-  if(serviceType == "Outlet"){
+  if(serviceType == std::string("Outlet")){
     // Add First Outlet //
     StaticJsonBuffer<200> jsonOutletBufferA;
     JsonObject& addOutletAccessoryJsonA = jsonOutletBufferA.createObject();
@@ -184,16 +186,16 @@ void addAccessory(){
   }
 
   // Set Accessory Information //
-  StaticJsonBuffer<200> jsonAccessoryInformationBuffer;
-  JsonObject& accessoryInformation = jsonAccessoryInformationBuffer.createObject();
-  accessoryInformation["name"] = chipId;
-  accessoryInformation["manufacturer"] ="StaticIp IT";
-  accessoryInformation["model"] = serviceType;
-  accessoryInformation["serialnumber"] = ESP.getChipId();
-  String jsonAccessoryInformationString;
-  accessoryInformation.printTo(jsonAccessoryInformationString);
-  client.publish(accessoryInformationTopic, jsonAccessoryInformationString);
-  Serial.println(jsonAccessoryInformationString);
+  //StaticJsonBuffer<200> jsonAccessoryInformationBuffer;
+  //JsonObject& accessoryInformation = jsonAccessoryInformationBuffer.createObject();
+  //accessoryInformation["name"] = chipId;
+  //accessoryInformation["manufacturer"] ="StaticIp IT";
+  //accessoryInformation["model"] = serviceType;
+  ////accessoryInformation["serialnumber"] = ESP.getChipId();
+  //String jsonAccessoryInformationString;
+  //accessoryInformation.printTo(jsonAccessoryInformationString);
+  //client.publish(accessoryInformationTopic, jsonAccessoryInformationString);
+  //Serial.println(jsonAccessoryInformationString);
 }
 
 void maintAccessory(){
@@ -207,8 +209,8 @@ void setReachability(){
   setReachabilityJson["reachable"] = true;
   String setReachabilityJsonString;
   setReachabilityJson.printTo(setReachabilityJsonString);
-  Serial.println(setReachabilityJsonString);
   client.publish(reachabilitytopic,setReachabilityJsonString);
+  Serial.println("Setting Reachability");
 }
 
 void removeAccessory(){
@@ -216,9 +218,9 @@ void removeAccessory(){
 }
 
 void setAccessory(){
-  if(serviceType == "Outlet"){
+  if(serviceType == std::string("Outlet")){
     Serial.print("Set Outlet ");
-    if(accessoryValue == "1"){
+    if(accessoryValue == "true"){
       if(accessoryServiceName == std::string(chipId)){
         Serial.println("A ON");
         topOutletState = true;
@@ -230,7 +232,7 @@ void setAccessory(){
         digitalWrite(bottomOutlet, LOW);
       }
     }
-    else if(accessoryValue == "0"){
+    else if(accessoryValue == "false"){
       if(accessoryServiceName == std::string(chipId)){
         Serial.println("A OFF");
         topOutletState = false;
@@ -246,7 +248,7 @@ void setAccessory(){
 }
 
 void getAccessory(){
-  if(serviceType == "Outlet"){
+  if(serviceType == std::string("Outlet")){
     Serial.print("Get Outlet");
     StaticJsonBuffer<200> getOutletBuffer;
     JsonObject& getOutletJson = getOutletBuffer.createObject();
